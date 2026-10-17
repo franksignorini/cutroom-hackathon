@@ -133,9 +133,10 @@ HTTPS URL. That's how the studio floor is live.
 
 </td><td valign="top">
 
-**♨️ A warm sandbox, provisioned once**<br/>
-`setup-sandbox.mjs` uploads the crew + engine (223 MB), installs ffmpeg and Chrome and test-renders in **~90 s**. Jobs
-then wake it in **~100 ms**, waiting out any in-flight pause/resume first.
+**♨️ A warm sandbox that sleeps between jobs**<br/>
+`setup-sandbox.mjs` uploads the crew + engine (223 MB), installs ffmpeg and Chrome and test-renders in **~90 s**, once.
+Between jobs, CreateOS **auto-pauses** it after 3 min idle (memory kept); the next job **resumes** it — the boot screen
+shows "woke from auto-pause in N ms" — and turns auto-pause off for the run, so a render is never paused mid-film.
 
 </td></tr>
 </table>

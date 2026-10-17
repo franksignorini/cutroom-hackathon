@@ -1,6 +1,7 @@
 import "server-only";
 import { CreateosSandboxClient, type Sandbox } from "@nodeops-createos/sandbox";
 import { BOOT_PLAN, type BootEvent, type BootRecord, type BootStep, type BootStepId } from "@/lib/boot";
+import { getKV } from "./kv";
 import { crew, MAX_USD, REQUEST_BUDGET } from "./models";
 import type { Job } from "./store";
 
@@ -17,6 +18,9 @@ import type { Job } from "./store";
 export const SHAPE = process.env.CREATEOS_SHAPE || "s-2vcpu-4gb"; // 2 vCPU / 4 GB: Chrome renders ~3× faster than on 1 vCPU / 1 GB
 export const ROOTFS = "devbox:1"; // Ubuntu 24.04, Node 24, Python
 export const REGION = process.env.CREATEOS_REGION || "eu";
+// Idle seconds before CreateOS pauses the warm sandbox between jobs (60-86400).
+const IDLE_PAUSE_S = Math.min(86_400, Math.max(60, Number(process.env.IDLE_PAUSE_S) || 180));
+const RUNNING_SET = "cutroom:running"; // queue.ts: the jobs holding a slot
 const PREVIEW_PORT = 8080; // the crew's feed (pipeline/lib/feed.mjs) inside the sandbox
 const CHROME = "/usr/local/bin/chrome-nosandbox"; // installed by scripts/setup-sandbox.mjs
 
@@ -76,16 +80,25 @@ export async function bootSandbox(job: Job, origin: string, emit: (e: BootEvent)
 
   // The Free plan allows one sandbox at a time, so a warm one (CREATEOS_SANDBOX_ID) is resumed instead of created.
   const warm = process.env.CREATEOS_SANDBOX_ID;
+  let woke: number | undefined; // ms to resume the warm sandbox from its idle auto-pause, when it was asleep
   const sb: Sandbox = await step(
     "sandbox",
     async () => {
       if (warm) {
-        // A pause or resume may still be in flight: let it settle, then make sure the VM is running before any file or
-        // egress call (those answer 409/404 mid-transition).
+        // Between jobs CreateOS auto-pauses the warm sandbox when idle (releaseSandbox turns it on). A pause or resume
+        // may still be in flight: let it settle, wake it, and switch auto-pause off for the run so a long render is
+        // never paused under the crew. Only then any file or egress call (those answer 409/404 mid-transition).
         const s = await client.getSandbox(warm);
-        if (s.status === "pausing") await s.waitUntilPaused({ timeoutMs: 60_000 });
-        if (s.status === "paused") await s.resume();
-        if (s.status !== "running") await s.waitUntilRunning({ timeoutMs: 60_000 });
+        for (let i = 0; i < 2 && s.status !== "running"; i++) {
+          const t = performance.now();
+          if (s.status === "pausing") await s.waitUntilPaused({ timeoutMs: 60_000 });
+          if (s.status === "paused") await s.resume();
+          await s.waitUntilRunning({ timeoutMs: 60_000 });
+          woke = Math.round(performance.now() - t);
+          await s.setAutoPause(null).catch(() => {});
+          await s.refresh();
+        }
+        if (woke === undefined) await s.setAutoPause(null).catch(() => {});
         return s.refresh();
       }
       return client.createSandbox({
@@ -97,7 +110,9 @@ export async function bootSandbox(job: Job, origin: string, emit: (e: BootEvent)
         auto_pause_after_seconds: 60,
       });
     },
-    (s) => `${s.id} · ${s.data.shape ?? SHAPE} · ${s.data.region ?? REGION} · VM up in ${s.data.spawn_ms ?? "?"} ms`,
+    (s) =>
+      `${s.id} · ${s.data.shape ?? SHAPE} · ${s.data.region ?? REGION} · ` +
+      (woke !== undefined ? `woke from auto-pause in ${woke} ms` : warm ? "already awake" : `VM up in ${s.data.spawn_ms ?? "?"} ms`),
     warm ? "Waking the warm sandbox" : undefined,
   );
 
@@ -234,8 +249,9 @@ export async function bootSandbox(job: Job, origin: string, emit: (e: BootEvent)
 }
 
 /**
- * A job ended (done, CUT, failed): give its sandbox back. The warm sandbox (CREATEOS_SANDBOX_ID) stays running for the
- * next job; a per-job sandbox is destroyed, which is what frees the Free plan's single slot. Mock sandboxes need nothing.
+ * A job ended (done, CUT, failed): give its sandbox back. The warm sandbox (CREATEOS_SANDBOX_ID) gets CreateOS's idle
+ * auto-pause back (IDLE_PAUSE_S, default 180 s), so it sleeps between jobs and the next boot wakes it; a per-job sandbox
+ * is destroyed, which is what frees the Free plan's single slot. Mock sandboxes need nothing.
  */
 export async function releaseSandbox(job: Job) {
   const apiKey = createosKey();
@@ -243,10 +259,12 @@ export async function releaseSandbox(job: Job) {
   const client = new CreateosSandboxClient({ apiKey, baseUrl: process.env.CREATEOS_SANDBOX_BASE_URL || undefined });
   try {
     const sb = await client.getSandbox(job.sandboxId);
-    if (job.status === "done") return; // the video is served from the sandbox: its auto-pause puts it to sleep later
-    // The warm sandbox stays up: a pause sent when one job ends can land while the next one is booting (409 "sandbox
-    // is pausing" / 404 mid-transition). Keeping 2 vCPU running is cheap on the hackathon credits.
-    if (job.sandboxId !== process.env.CREATEOS_SANDBOX_ID) await sb.destroy();
+    if (job.sandboxId === process.env.CREATEOS_SANDBOX_ID) {
+      // Never an explicit pause: one sent as a job ends could land while the next one boots (409 "sandbox is pausing").
+      // Auto-pause is only a setting, and only when no other job runs here (a late "done" from a crew already declared
+      // dead must not arm it under the next run). The boot switches it off again before it touches the VM.
+      if ((await getKV().smembers(RUNNING_SET)).length === 0) await sb.setAutoPause(IDLE_PAUSE_S);
+    } else if (job.status !== "done") await sb.destroy(); // a done per-job sandbox serves its video until it auto-pauses
   } catch (err) {
     console.error(`[createos] could not release ${job.sandboxId}: ${(err as Error).message}`);
   }
