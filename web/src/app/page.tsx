@@ -33,8 +33,7 @@ export default function Home() {
             <Wordmark />
           </Link>
           <div className="hidden items-center gap-7 text-[13px] text-paper-2 md:flex">
-            <a href="#example" className="hover:text-paper">Trailer example</a>
-            <a href="#screening" className="hover:text-paper">Screening room</a>
+            <a href="#screening" className="hover:text-paper">Trailer examples</a>
             <a href="#crew" className="hover:text-paper">The crew</a>
             <a href="#sandbox" className="hover:text-paper">Inside the sandbox</a>
             <a href="#stack" className="hover:text-paper">Stack</a>
@@ -67,7 +66,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div id="example" className="relative z-10 mx-auto grid max-w-[1400px] scroll-mt-8 items-center gap-10 px-5 pb-24 sm:px-8 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="relative z-10 mx-auto grid max-w-[1400px] items-center gap-10 px-5 pb-24 sm:px-8 lg:grid-cols-[0.8fr_1.2fr]">
           <div className="animate-rise [animation-delay:240ms]">
             <p className="label mb-4">What happens when you roll</p>
             <p className="max-w-[520px] text-[clamp(20px,2vw,26px)] leading-snug text-paper">
