@@ -32,7 +32,7 @@ export function SandboxPanel({
         </div>
         {!sb && offline && <p className="mt-2 text-[12px] leading-snug text-muted">{offline}</p>}
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {[sb?.shape ?? "s-1vcpu-1gb", sb?.rootfs ?? "devbox:1", sb ? `region ${sb.region}` : "region —", sb ? `boot ${sb.bootMs} ms` : "boot —"].map(
+          {[sb?.shape ?? "s-2vcpu-4gb", sb?.rootfs ?? "devbox:1", sb ? `region ${sb.region}` : "region —", sb ? `boot ${sb.bootMs} ms` : "boot —"].map(
             (c) => (
               <span key={c} className="tc rounded-md border border-line bg-ink px-1.5 py-0.5 text-[11px] text-paper-2">
                 {c}

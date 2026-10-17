@@ -14,7 +14,7 @@ import type { Job } from "./store";
 // The key: CREATEOS_PROJECT_API_KEY is what `stripe projects add createos/project` writes (verified 2026-10-15: the
 // Sandbox API accepts it); CREATEOS_SANDBOX_API_KEY, the SDK's own name, wins if set.
 
-export const SHAPE = process.env.CREATEOS_SHAPE || "s-1vcpu-1gb"; // Free plan: the biggest shape allowed
+export const SHAPE = process.env.CREATEOS_SHAPE || "s-2vcpu-4gb"; // 2 vCPU / 4 GB: Chrome renders ~3× faster than on 1 vCPU / 1 GB
 export const ROOTFS = "devbox:1"; // Ubuntu 24.04, Node 24, Python
 export const REGION = process.env.CREATEOS_REGION || "eu";
 const PREVIEW_PORT = 8080; // the crew's feed (pipeline/lib/feed.mjs) inside the sandbox

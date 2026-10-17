@@ -97,7 +97,7 @@ export function Intro() {
             </span>
             <span className="absolute bottom-4 left-5 sm:bottom-6 sm:left-14">Picture start</span>
             <span className="absolute bottom-4 right-5 sm:bottom-6 sm:right-14">
-              f<span ref={frame}>000</span> · 1 vCPU · no GPU
+              f<span ref={frame}>000</span> · 2 vCPU · no GPU
             </span>
           </div>
         </div>

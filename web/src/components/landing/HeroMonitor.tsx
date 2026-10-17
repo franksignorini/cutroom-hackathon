@@ -51,7 +51,7 @@ export function HeroMonitor() {
         <div className="tc pointer-events-none absolute right-5 top-4 text-[12px] text-paper/80">{timecode(t)}</div>
         <div className="pointer-events-none absolute bottom-4 left-5 right-5 flex items-end justify-between">
           <span className="label text-paper/70">Beat · {beat}</span>
-          <span className="label text-paper/70">1 vCPU · no GPU · 286 frames</span>
+          <span className="label text-paper/70">2 vCPU · no GPU · 286 frames</span>
         </div>
         <div className="absolute bottom-0 left-0 h-[2px] bg-signal" style={{ width: `${(t / 11.925) * 100}%` }} />
       </div>

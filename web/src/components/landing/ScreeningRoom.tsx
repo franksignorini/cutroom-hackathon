@@ -233,7 +233,7 @@ function LongTake() {
           <span className="text-tungsten">not minutes.</span>
         </h3>
         <p className="mt-5 text-[16px] leading-relaxed text-paper-2">
-          Cutroom is the ten-minute cut of a bigger studio. Let the same kind of crew work for hours, with 3D scenes
+          Cutroom is the few-minute cut of a bigger studio. Let the same kind of crew work for hours, with 3D scenes
           rendered in Blender, a score synthesized note by note and five rounds of critique, and this is what comes out:
           <span className="text-paper"> THE LAST LIGHTHOUSE</span>, 35 seconds, still every frame from code.
         </p>

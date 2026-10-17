@@ -31,7 +31,7 @@ export function Premiere({ state, onClose, where = "sandbox", tier, prompt }: {
     ["Code written", `${state.files.filter((f) => /\.(js|html|json)$/.test(f.path)).length} files`],
     ["Critic notes", `${state.notes.length} · ${state.notes.filter((n) => n.fixed).length} fixed`],
     ["Frames", `${state.render?.of ?? 0} · software raster`],
-    ["Compute", `$${state.cost.usd.toFixed(4)} on 1 vCPU`],
+    ["Models", `$${state.cost.usd.toFixed(4)} · 2-vCPU sandbox`],
   ];
 
   function play() {

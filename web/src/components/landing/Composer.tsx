@@ -33,7 +33,7 @@ const LENGTHS: Option<number>[] = [
   {
     value: 30,
     label: "30 s",
-    why: "30 s is locked for this demo. On a 1-vCPU sandbox the extra shots and the render push a run past 20 minutes. The pipeline handles it; a live presentation doesn't.",
+    why: "30 s is locked for this demo. Even on a 2-vCPU sandbox the extra shots and the render push a run past 10 minutes. The pipeline handles it; a live presentation doesn't.",
   },
 ];
 
@@ -41,7 +41,7 @@ const LENGTHS: Option<number>[] = [
 // Claude Sonnet thinks first, paints the signature shot, reviews with a second look).
 const effortOf = (tier: Tier) => (tier === "premium" ? "high" : "medium");
 
-const MINUTES: Record<number, number> = { 10: 7, 15: 9 };
+const MINUTES: Record<number, number> = { 10: 5, 15: 7 };
 
 const TOUR_KEY = "cutroom:quickstart"; // localStorage: the first-visit tip was dismissed
 
@@ -361,8 +361,8 @@ export function Composer({ premium }: { premium: PremiumInfo }) {
                   </span>{" "}
                   {tier === "premium"
                     ? `${premium.model} directs, writes every shot and reviews the frames`
-                    : "Open models on OpenRouter's free tier"}
-                  , in a 1-vCPU CreateOS sandbox: one plan, every shot written as code, one critique round, one fix pass.
+                    : "Open models (OpenRouter free tier, Groq, Gemini)"}
+                  , in a 2-vCPU CreateOS sandbox: one plan, every shot written as code, one critique round, one fix pass.
                 </span>
               </>
             )}

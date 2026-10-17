@@ -60,7 +60,7 @@ const sb = await step('sandbox', async () => {
     return s;
   }
   return client.createSandbox({
-    shape: process.env.CREATEOS_SHAPE || 's-1vcpu-1gb',
+    shape: process.env.CREATEOS_SHAPE || 's-2vcpu-4gb',
     rootfs: 'devbox:1',
     region: process.env.CREATEOS_REGION || 'eu',
     name: 'cutroom-crew',

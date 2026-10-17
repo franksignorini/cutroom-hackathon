@@ -123,7 +123,7 @@ export default function Home() {
             </h2>
           </div>
           <p className="max-w-[560px] text-[17px] leading-relaxed text-paper-2 lg:justify-self-end">
-            The same craft rules as our full trailer studio, compressed into a ten-minute run: a hook that works with the
+            The same craft rules as our full trailer studio, compressed into a few-minute run: a hook that works with the
             sound off, one idea per beat, one moment of release, and a critic that looks at the frames before anything
             ships.
           </p>
@@ -167,10 +167,10 @@ export default function Home() {
             </p>
             <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line">
               {[
-                ["~210 ms", "to boot a microVM"],
-                ["1 vCPU", "software raster, no GPU"],
-                ["2 hosts", "egress allowlist, the rest is dropped"],
-                ["≈ $0.005", "compute per trailer, billed per second"],
+                ["< 100 ms", "to boot a microVM"],
+                ["2 vCPU", "4 GB, software raster, no GPU"],
+                ["12 hosts", "egress allowlist, the rest is dropped"],
+                ["≈ $0.01", "compute per trailer, billed per second"],
               ].map(([k, v]) => (
                 <div key={k} className="bg-ink-2 p-5">
                   <dt className="font-display text-[38px] font-[800] leading-none">{k}</dt>
@@ -187,7 +187,7 @@ export default function Home() {
                 <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
                 <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
                 <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
-                <span className="label ml-3">sb_7f2a91 · s-1vcpu-1gb · eu</span>
+                <span className="label ml-3">sb_7f2a91 · s-2vcpu-4gb · eu</span>
               </div>
               <pre className="scroll-thin overflow-x-auto p-5 font-mono text-[13px] leading-[1.75]">
                 {TERMINAL.map((l, i) => (
@@ -229,10 +229,10 @@ export default function Home() {
             </h2>
             <p className="mt-6 max-w-[520px] text-[17px] leading-relaxed text-paper-2">
               Every service behind Cutroom was created with Stripe Projects: accounts, keys and environment variables in
-              one CLI. Payments run on Stripe Checkout, in test mode.
+              one CLI, all on free plans. Premium trailers can be paid with Stripe Checkout, in test mode.
             </p>
             <div className="mt-8 flex flex-wrap gap-2">
-              {["CreateOS", "Vercel", "Upstash", "Cloudinary", "Stripe Checkout"].map((s) => (
+              {["CreateOS", "OpenRouter", "Vercel", "Upstash", "Cloudinary", "Stripe Checkout"].map((s) => (
                 <span key={s} className="rounded-full border border-line-2 px-3.5 py-1.5 text-[13px] text-paper-2">
                   {s}
                 </span>
@@ -246,6 +246,8 @@ export default function Home() {
             {"\n"}
             <span className="text-signal">$</span> stripe projects add createos/project
             {"\n"}
+            <span className="text-signal">$</span> stripe projects add openrouter/api
+            {"\n"}
             <span className="text-signal">$</span> stripe projects add vercel/project
             {"\n"}
             <span className="text-signal">$</span> stripe projects add upstash/redis
@@ -254,7 +256,7 @@ export default function Home() {
             {"\n"}
             <span className="text-signal">$</span> stripe projects status
             {"\n"}
-            <span className="text-go">  ✓ 4 services healthy · spend 0.00 USD</span>
+            <span className="text-go">  ✓ 5 providers · free plans · spend 0.00 USD</span>
           </pre>
         </div>
       </section>
