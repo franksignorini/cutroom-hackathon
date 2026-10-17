@@ -155,24 +155,29 @@ export async function bootSandbox(job: Job, origin: string, emit: (e: BootEvent)
     eventsUrl = await step(
       "crew",
       async () => {
+        const env: Record<string, string> = {
+          OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? "",
+          GROQ_API_KEY: process.env.GROQ_API_KEY ?? "", // the fallback providers (pipeline/lib/llm.mjs)
+          GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ?? "",
+          PIXABAY_API_KEY: process.env.PIXABAY_API_KEY ?? "", // the photos under up to two beats (pipeline/lib/photos.mjs)
+          ENGINE_DIR: "/workspace/engine",
+          CHROME_PATH: CHROME,
+          HOST: "0.0.0.0",
+          FEED_PORT: String(PREVIEW_PORT),
+          PUBLIC_URL: previewUrl,
+          CUTROOM_URL: process.env.CUTROOM_URL || origin,
+          JOB_TOKEN: job.token,
+          LINGER_S: "900",
+        };
+        // CreateOS only accepts process env keys declared when the sandbox was created, so the crew's env travels as a
+        // file next to the brief and bash exports it before starting node.
+        const envPath = `/workspace/briefs/${job.id}.env`;
+        const quote = (v: string) => `'${v.replace(/'/g, `'\\''`)}'`;
+        await sb.files.upload(envPath, Object.entries(env).map(([k, v]) => `${k}=${quote(v)}`).join("\n") + "\n");
         await sb.processes.create({
-          cmd: "node",
-          args: ["/workspace/pipeline/pipeline.mjs", "--brief", briefPath],
+          cmd: "bash",
+          args: ["-c", `set -a; . ${envPath}; set +a; rm -f ${envPath}; exec node /workspace/pipeline/pipeline.mjs --brief ${briefPath}`],
           cwd: "/workspace",
-          env: {
-            OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? "",
-            GROQ_API_KEY: process.env.GROQ_API_KEY ?? "", // the fallback providers (pipeline/lib/llm.mjs)
-            GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ?? "",
-            PIXABAY_API_KEY: process.env.PIXABAY_API_KEY ?? "", // the photos under up to two beats (pipeline/lib/photos.mjs)
-            ENGINE_DIR: "/workspace/engine",
-            CHROME_PATH: CHROME,
-            HOST: "0.0.0.0",
-            FEED_PORT: String(PREVIEW_PORT),
-            PUBLIC_URL: previewUrl,
-            CUTROOM_URL: process.env.CUTROOM_URL || origin,
-            JOB_TOKEN: job.token,
-            LINGER_S: "900",
-          },
         });
         // The feed answers through the ingress once the crew is up: that is the proof it runs in the sandbox.
         for (let i = 0; i < 40; i++) {

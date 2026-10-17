@@ -81,10 +81,12 @@ let kv: KV | undefined;
 export function getKV(): KV {
   if (kv) return kv;
   // `stripe projects add upstash/redis` writes the credentials with the resource's prefix (repo root .env, read by
-  // next.config.ts): take UPSTASH_REDIS_REST_URL / _TOKEN, or any UPSTASH…REST_URL / UPSTASH…REST_TOKEN.
+  // next.config.ts): take UPSTASH_REDIS_REST_URL / _TOKEN, UPSTASH_REST_URL / _TOKEN, or any UPSTASH…REST_URL /
+  // UPSTASH…REST_TOKEN — never the READ_ONLY token, which can't write.
   const find = (suffix: string) =>
     process.env[`UPSTASH_REDIS_${suffix}`] ||
-    Object.entries(process.env).find(([k, v]) => k.startsWith("UPSTASH") && k.endsWith(suffix) && v)?.[1];
+    process.env[`UPSTASH_${suffix}`] ||
+    Object.entries(process.env).find(([k, v]) => k.startsWith("UPSTASH") && k.endsWith(suffix) && !k.includes("READ_ONLY") && v)?.[1];
   const url = find("REST_URL");
   const token = find("REST_TOKEN");
   kv = url && token ? upstash(url, token) : memory();

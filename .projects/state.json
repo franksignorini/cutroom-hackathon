@@ -7,6 +7,9 @@
     "openrouter": {
       "name": "OpenRouter"
     },
+    "upstash": {
+      "name": "Upstash"
+    },
     "vercel": {
       "name": "Vercel"
     }
@@ -29,6 +32,12 @@
       "name": "openrouter-api",
       "providerName": "OpenRouter",
       "serviceId": "api"
+    },
+    "upstash-redis": {
+      "livemode": true,
+      "name": "upstash-redis",
+      "providerName": "Upstash",
+      "serviceId": "redis"
     },
     "vercel-plan": {
       "livemode": true,

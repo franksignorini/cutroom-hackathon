@@ -122,6 +122,19 @@ export function Composer({ premium }: { premium: PremiumInfo }) {
   }, []);
   const premiumOut = quota?.left === 0;
 
+  // Back from the studio (or a failed take), the page comes back with its old state: "Booting sandbox" would stick.
+  // Effects re-run when Next shows the kept route again, and `pageshow` covers the browser's back-forward cache.
+  useEffect(() => {
+    const reset = () => setBusy(false);
+    const id = requestAnimationFrame(reset);
+    const onShow = (e: PageTransitionEvent) => e.persisted && reset();
+    window.addEventListener("pageshow", onShow);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("pageshow", onShow);
+    };
+  }, []);
+
   // The input is the page: focus it on arrival (desktop only, so phones do not pop the keyboard).
   useEffect(() => {
     if (window.matchMedia("(pointer: fine)").matches) input.current?.focus({ preventScroll: true });
