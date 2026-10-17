@@ -64,7 +64,7 @@ and fixed — by the agent itself.
 ## 🧠 How it works
 
 ```mermaid
-flowchart LR
+flowchart TB
     U(["🧑 You<br/>type a prompt"]) --> APP["Next.js on Vercel<br/>queue · limits · CUT"]
     APP -- "wake · lock egress<br/>upload brief" --> SB
     subgraph SB["🔒 CreateOS sandbox · Firecracker microVM · 2 vCPU"]
