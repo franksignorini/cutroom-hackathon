@@ -80,9 +80,13 @@ export async function bootSandbox(job: Job, origin: string, emit: (e: BootEvent)
     "sandbox",
     async () => {
       if (warm) {
+        // A pause or resume may still be in flight: let it settle, then make sure the VM is running before any file or
+        // egress call (those answer 409/404 mid-transition).
         const s = await client.getSandbox(warm);
+        if (s.status === "pausing") await s.waitUntilPaused({ timeoutMs: 60_000 });
         if (s.status === "paused") await s.resume();
-        return s;
+        if (s.status !== "running") await s.waitUntilRunning({ timeoutMs: 60_000 });
+        return s.refresh();
       }
       return client.createSandbox({
         shape: SHAPE,
@@ -174,9 +178,17 @@ export async function bootSandbox(job: Job, origin: string, emit: (e: BootEvent)
         const envPath = `/workspace/briefs/${job.id}.env`;
         const quote = (v: string) => `'${v.replace(/'/g, `'\\''`)}'`;
         await sb.files.upload(envPath, Object.entries(env).map(([k, v]) => `${k}=${quote(v)}`).join("\n") + "\n");
+        // The warm sandbox stays up, so the last crew may still be lingering on the feed port (it serves its video for
+        // LINGER_S): stop it first, or the new one can't listen and /health would answer for the old job. The pattern is
+        // anchored on `node`, so it never matches this bash command line.
+        const prev = "'^node /workspace/pipeline/pipeline\\.mjs'";
         await sb.processes.create({
           cmd: "bash",
-          args: ["-c", `set -a; . ${envPath}; set +a; rm -f ${envPath}; exec node /workspace/pipeline/pipeline.mjs --brief ${briefPath}`],
+          args: [
+            "-c",
+            `pkill -f ${prev}; for i in $(seq 25); do pgrep -f ${prev} >/dev/null || break; sleep 0.2; done; ` +
+              `set -a; . ${envPath}; set +a; rm -f ${envPath}; exec node /workspace/pipeline/pipeline.mjs --brief ${briefPath}`,
+          ],
           cwd: "/workspace",
         });
         // The feed answers through the ingress once the crew is up: that is the proof it runs in the sandbox.
@@ -222,7 +234,7 @@ export async function bootSandbox(job: Job, origin: string, emit: (e: BootEvent)
 }
 
 /**
- * A job ended (done, CUT, failed): give its sandbox back. The warm sandbox (CREATEOS_SANDBOX_ID) is paused for the
+ * A job ended (done, CUT, failed): give its sandbox back. The warm sandbox (CREATEOS_SANDBOX_ID) stays running for the
  * next job; a per-job sandbox is destroyed, which is what frees the Free plan's single slot. Mock sandboxes need nothing.
  */
 export async function releaseSandbox(job: Job) {
@@ -232,9 +244,9 @@ export async function releaseSandbox(job: Job) {
   try {
     const sb = await client.getSandbox(job.sandboxId);
     if (job.status === "done") return; // the video is served from the sandbox: its auto-pause puts it to sleep later
-    if (job.sandboxId === process.env.CREATEOS_SANDBOX_ID) {
-      if (sb.status === "running") await sb.pause();
-    } else await sb.destroy();
+    // The warm sandbox stays up: a pause sent when one job ends can land while the next one is booting (409 "sandbox
+    // is pausing" / 404 mid-transition). Keeping 2 vCPU running is cheap on the hackathon credits.
+    if (job.sandboxId !== process.env.CREATEOS_SANDBOX_ID) await sb.destroy();
   } catch (err) {
     console.error(`[createos] could not release ${job.sandboxId}: ${(err as Error).message}`);
   }
