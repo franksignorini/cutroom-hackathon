@@ -829,7 +829,9 @@ function sizeCheck(g) {
   // 3%: at 2.4% HOUND & GOLD's "Rich colours. Polished gold hardware." passed and read as a speck on a phone
   if (sub.length && tall(sub) < 0.03 && !smallTold.has(CUR.b.name + '~sub')) {
     smallTold.add(CUR.b.name + '~sub');
-    console.error(`[shot ${CUR.b.name}] small: the sub is ${(tall(sub) * 100).toFixed(1)}% of the frame height: draw k.beat.sub at least 3.5% tall (about 38 px at 1080)`);
+    // The check measures the letters' ink, about 70% of the font size: "38 px" as a font size measured 2.5% and the
+    // Builder failed twice obeying it (HOUND & HEIRLOOM, 2026-10-17). Ask for the font size that clears it.
+    console.error(`[shot ${CUR.b.name}] small: the sub's letters are ${(tall(sub) * 100).toFixed(1)}% of the frame height: set k.beat.sub's font size to at least 5.5% of the frame height (about 60 px at 1080; the letters measure ~70% of the font size)`);
   }
 }
 // A word drawn, then painted over: YOGA's shot (2026-10-17) laid a black mat shape over STILL after writing it. Icons
