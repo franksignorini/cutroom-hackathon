@@ -1,6 +1,9 @@
 {
   "version": 2,
   "providers": {
+    "cloudinary": {
+      "name": "Cloudinary"
+    },
     "createos": {
       "name": "createos"
     },
@@ -15,6 +18,18 @@
     }
   },
   "resources": {
+    "cloudinary-media": {
+      "livemode": true,
+      "name": "cloudinary-media",
+      "providerName": "Cloudinary",
+      "serviceId": "media"
+    },
+    "cloudinary-plan": {
+      "livemode": true,
+      "name": "cloudinary-plan",
+      "providerName": "Cloudinary",
+      "serviceId": "free"
+    },
     "createos-plan": {
       "livemode": true,
       "name": "createos-plan",
