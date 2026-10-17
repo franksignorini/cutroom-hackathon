@@ -1,0 +1,959 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cutroom film</title>
+<!-- The Cutroom film: one page that turns film.json (the Director's plan) into shots, with the studio's kit (../../lib).
+     Each beat names a recipe (statement, world, slams, card, rush, drop, title) or "custom": shots/<beat>.js, written by
+     the Builder agent. A custom shot that fails to load or throws falls back to its recipe and reports [shot <name>] on
+     the console, which render.mjs prints as a [page error] for the pipeline. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+import * as motion from '../../lib/motion.js';
+import * as draw from '../../lib/draw.js';
+import * as atmos from '../../lib/atmos.js';
+import * as particles from '../../lib/particles.js';
+import * as space from '../../lib/space.js';
+import * as captions from '../../lib/captions.js';
+import * as hud from '../../lib/hud.js';
+import { finish } from '../../lib/post.js';
+import { studio, sequence } from '../../lib/studio.js';
+import { setTheme, rgba } from '../../lib/theme.js';
+import { frame } from '../../lib/layout.js';
+import { withTransitions } from '../../lib/transitions.js';
+import { cast } from '../../lib/type.js';
+
+const { clamp, lerp, win, cine, sp, impactShake, rng } = motion;
+const { camera, project, text, dropIn, fitSize, font } = draw;
+// A line set glyph by glyph has a quarter-em space, and in a serif the words ran together ("DON'T LOOK DOWN", SUMMIT;
+// "UPWARDUNTIL", CRUX): the recipes set their lines with a wider gap.
+// Only where the face's space is narrow (under 0.24 em): doubled everywhere, SIGNAL 0 stood as "SIGNAL     0" (2026-10-17).
+const letters = (g, str, x, y, o = {}, ...rest) => {
+  g.save(); g.font = font(o.weight ?? '700', 100, o.family ?? T.text.family); const sp = g.measureText(' ').width; g.restore();
+  // tracked lines are already open (one more glyph adds a tracking step too); a monospaced face's space is a whole
+  // letter wide ("NOODLE    88", 2026-10-17): there a quarter-em space stands in
+  if (sp > 45) return draw.letters(g, String(str).replace(/ /g, ' '), x, y, o, ...rest);
+  const narrow = sp < 24 && (o.tracking ?? 0) < 0.03;
+  // a hair space more, not a second space: doubled, Playfair's gap read "COOL   ROOFS" (2026-10-17)
+  return draw.letters(g, narrow ? String(str).replace(/ /g, '  ') : str, x, y, o, ...rest);
+};
+const { beam, godRays, fog, dust, rain, snow, smoke, lightLeak, flare, gateWeave, bokeh } = atmos;
+const { embers, sparks } = particles;
+const { phrase } = captions;
+
+// A radius that dips below zero for one frame (an easing overshoot, t = 0) throws in arc() and kills the whole shot:
+// three hand-written shots on 2026-10-16, each a paid retry. Negative radii draw nothing instead; NaN still throws so
+// the Builder hears about real bugs.
+{
+  const P = CanvasRenderingContext2D.prototype, pos = (r) => (r < 0 ? 0 : r);
+  const arc = P.arc, ellipse = P.ellipse, radial = P.createRadialGradient;
+  P.arc = function (x, y, r, ...rest) { return arc.call(this, x, y, pos(r), ...rest); };
+  P.ellipse = function (x, y, rx, ry, ...rest) { return ellipse.call(this, x, y, pos(rx), pos(ry), ...rest); };
+  P.createRadialGradient = function (x0, y0, r0, x1, y1, r1) { return radial.call(this, x0, y0, pos(r0), x1, y1, pos(r1)); };
+}
+// Text partly outside the picture (the frame edge or the letterbox bar) is moved inside it, however it was drawn: the
+// kit's text() had a guard, but TIDEWATER's shot (2026-10-16) wrote with g.fillText, laid out three words around its
+// lamp, and when the Critic cut one the first word sat above the frame, so "LIGHTS FAIL" showed only FAIL. Only the
+// film canvas, only without rotation; text wholly outside (sliding in or out) is left alone. Set once the plan is read.
+const EDGE = { on: false, lo: 0, hi: 1, aspect: 0 }; // lo, hi: the picture's top and bottom as shares of the height
+{
+  const P = CanvasRenderingContext2D.prototype, fill = P.fillText, stroke = P.strokeText;
+  const upright = (m) => m.a > 0 && m.d > 0 && Math.abs(m.b) < 0.02 * m.a && Math.abs(m.c) < 0.02 * m.d;
+  const place = (g, str, x, y) => {
+    const cw = g.canvas.width, ch = g.canvas.height; // the film canvas at any render scale, not an offscreen buffer
+    if (!EDGE.on || Math.abs(cw / ch - EDGE.aspect) > 0.01 || ch < 100) return [x, y];
+    const lo = EDGE.lo * ch, hi = EDGE.hi * ch;
+    const m = g.getTransform();
+    // a camera roll of a degree is still upright text: the drift-right move (0.07 degrees) switched every check off for the
+    // shots it framed (YOGA, 2026-10-17); a real rotation (a tilted sign) is left alone
+    if (!upright(m)) return [x, y];
+    const t = g.measureText(String(str));
+    const up = t.actualBoundingBoxAscent, down = t.actualBoundingBoxDescent;
+    if (!(up + down > 0)) return [x, y];
+    const top = m.d * (y - up) + m.f, bottom = m.d * (y + down) + m.f;
+    const left = m.a * (x - t.actualBoundingBoxLeft) + m.e, right = m.a * (x + t.actualBoundingBoxRight) + m.e;
+    if (bottom <= lo || top >= hi || right <= 0 || left >= cw) { offFrame(str); return [x, y]; }
+    overlap(g, str, left, top, right, bottom);
+    // ...and inside the sides: a line partly past the left or right edge moves in (HOUND & GOLD's subs were cut at the left
+    // by the camera's zoom, 2026-10-17). Whole strings only: a glyph set alone would land on its neighbour.
+    const pad = 0.015 * cw;
+    if (String(str).length > 1 && right - left <= cw - 2 * pad) {
+      if (left < pad) x += (pad - left) / m.a;
+      else if (right > cw - pad) x -= (right - (cw - pad)) / m.a;
+    }
+    if (bottom - top > hi - lo) return [x, y];
+    if (top < lo) return [x, y + (lo - top) / m.d];
+    if (bottom > hi) return [x, y - (bottom - hi) / m.d];
+    return [x, y];
+  };
+  // One of the beat's own words wholly outside the picture in the middle of its shot is not sliding in: it is lost.
+  // Reported as a shot error (the shot check sends it back to the Builder; a Critic words fix that caused it is undone).
+  const told = new Set();
+  // the beat word in a drawn string, in the middle of a hand-written shot (35-90% of the beat), or null
+  const beatWord = (str) => {
+    if (!CUR || CUR.b.kind !== 'custom' || CUR.lt < CUR.b.dur * 0.35 || CUR.lt > CUR.b.dur * 0.9) return null;
+    const said = String(str).toUpperCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ');
+    return [...(CUR.b.words ?? []), CUR.b.sub ?? ''].flatMap((w) => String(w).toUpperCase().split(/\s+/))
+      .map((w) => w.replace(/[^\p{L}\p{N}]/gu, '')).find((w) => w.length >= 2 && said.includes(w)) ?? null;
+  };
+  // Two different words of the beat drawn on top of each other in one frame: SALT & EMBER's fish shot (2026-10-16)
+  // stacked FISH. FIRE. SALT. in one spot ("FISFIRSALT."). Boxes live on CUR, which is new for every painted frame.
+  const overlap = (g, str, l, t, r, b, color = typeof g.fillStyle === 'string' ? g.fillStyle : null) => {
+    const word = g.globalAlpha > 0.3 ? beatWord(str) : null;
+    if (!word) return;
+    const boxes = (CUR.boxes ??= []);
+    for (const o of boxes) {
+      if (o.word === word) continue;
+      const iw = Math.min(r, o.r) - Math.max(l, o.l), ih = Math.min(b, o.b) - Math.max(t, o.t);
+      const key = `${CUR.b.name}~${o.word}~${word}`;
+      if (iw > 0 && ih > 0 && iw * ih > 0.08 * Math.min((r - l) * (b - t), (o.r - o.l) * (o.b - o.t)) && !told.has(key)) {
+        told.add(key);
+        console.error(`[shot ${CUR.b.name}] overlap: "${o.word}" and "${word}" are drawn on top of each other ${CUR.lt.toFixed(2)} s into the shot: give every word of k.beat.words its own place, or show them one at a time, each replacing the last`);
+      }
+    }
+    // the other way round: the word on top of an opaque icon (VOLT 9's white words on its white sneaker)
+    for (const o of CUR.icons ?? []) {
+      const iw = Math.min(r, o.r) - Math.max(l, o.l), ih = Math.min(b, o.b) - Math.max(t, o.t);
+      if (iw > 0 && ih > 0 && iw * ih > 0.15 * (r - l) * (b - t) && !told.has(`${CUR.b.name}#${word}`)) {
+        told.add(`${CUR.b.name}#${word}`);
+        console.error(`[shot ${CUR.b.name}] covered: "${word}" is drawn on top of an icon ${CUR.lt.toFixed(2)} s into the shot: an icon behind words must be faint (alpha under 0.5), or give them separate places`);
+      }
+    }
+    boxes.push({ word, l, t, r, b, color, alpha: g.globalAlpha });
+  };
+  const offFrame = (str) => {
+    const word = beatWord(str);
+    if (!word || told.has(CUR.b.name + word)) return;
+    told.add(CUR.b.name + word);
+    console.error(`[shot ${CUR.b.name}] off-frame: "${word}" is drawn outside the picture ${CUR.lt.toFixed(2)} s into the shot: lay out the words from k.beat.words, however many there are, inside the frame`);
+  };
+  // A word drawn glyph by glyph (the kit's letters()) is checked whole: each glyph alone is no beat word, so PALEO's
+  // shot (2026-10-17) drew its sub straight across WORLD and nothing was reported. Box in the caller's space.
+  EDGE.word = (g, str, l, t, r, b, color) => {
+    const cw = g.canvas.width, ch = g.canvas.height;
+    if (!EDGE.on || Math.abs(cw / ch - EDGE.aspect) > 0.01 || ch < 100) return;
+    const m = g.getTransform();
+    if (!upright(m)) return;
+    const L = m.a * l + m.e, R = m.a * r + m.e, T = m.d * t + m.f, B = m.d * b + m.f;
+    if (B <= EDGE.lo * ch || T >= EDGE.hi * ch || R <= 0 || L >= cw) offFrame(str);
+    else overlap(g, str, L, T, R, B, typeof color === 'string' ? color : null);
+  };
+  // ?words=off (the studio's "does the picture carry it" render) hides a hand-written shot's own fillText too: the
+  // shot check measures what is left, to catch shots that are only words (BLUE NOTE NIGHTS, 2026-10-17).
+  const NOWORDS = new URLSearchParams(location.search).get('words') === 'off';
+  P.fillText = function (str, x, y, ...rest) { const [x2, y2] = place(this, str, x, y); if (NOWORDS && CUR) return; return fill.call(this, str, x2, y2, ...rest); };
+  P.strokeText = function (str, x, y, ...rest) { const [x2, y2] = place(this, str, x, y); if (NOWORDS && CUR) return; return stroke.call(this, str, x2, y2, ...rest); };
+}
+const PLAN = await (await fetch('film.json', { cache: 'no-store' })).json();
+const L = frame(), { W, H } = L, U = L.unit, S = L.safe;
+{ const bar = PLAN.look.letterbox ? Math.max(0, (H - W / 2.39) / 2) : 0; Object.assign(EDGE, { on: true, lo: (bar + 6 * U) / H, hi: (H - bar - 6 * U) / H, aspect: W / H }); }
+const C = setTheme({ ink: PLAN.look.ground, bone: PLAN.look.text, dim: '#6E6A64', accent: PLAN.look.accent, palette: [] });
+const BEAT = 60 / PLAN.bpm;
+const T = await cast(PLAN), D = T.display;
+
+// ---------------------------------------------------------------- the film's own system (lib/casting.mjs in the crew)
+// The ground can be dark, paper or a bold colour; light in the frame is tinted by the film's palette, never the
+// studio's default warm orange (2026-10-16: every trailer read orange through the beam, the leak and the embers).
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, p) => `#${hexRgb(a).map((v, i) => Math.round(v + (hexRgb(b)[i] - v) * p).toString(16).padStart(2, '0')).join('')}`;
+const LIGHT = ((r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b)(...hexRgb(C.ink)) / 255 > 0.45;
+const GLOW = LIGHT ? C.accent : mix(C.bone, C.accent, 0.3);
+const STYLE = { cuts: ['zoom', 'luma'], hookAir: 'beam', titleAir: 'embers', ...(PLAN.style ?? {}) };
+// Where the type sits: centred, flush left (editorial) or low under an open frame.
+const LAY = PLAN.look.layout ?? 'centre';
+// flush left keeps 7% of the safe width: at 3% the camera's push-in carried a sub past the edge ("A BRITISH HOUSE", 2026-10-17)
+const AX = LAY === 'left' ? { x: S.x + S.w * 0.07, align: 'left' } : { x: L.cx, align: 'center' };
+const yAt = (f) => S.y + S.h * (LAY === 'low' ? Math.max(f, 0.64) : f);
+
+// ---------------------------------------------------------------- icons (lib/icons.mjs in the crew)
+// Vector icons of the things the Director named, fetched from Iconify into icons/, drawn as silhouettes tinted in the
+// film's colours. The first is the subject: the drop and the world show it unless a beat names another.
+const ICONS = {}, OBJ = {};
+// OBJ: the same things as lit 3D objects (Microsoft Fluent Emoji 3D, MIT), drawn in their own colours, never tinted
+const load = (src, word, into) => new Promise((ok) => {
+  const im = new Image();
+  im.onload = () => { into[word] = im; ok(); };
+  im.onerror = () => { console.warn(`[icon ${word}] ${src} does not load`); ok(); };
+  im.src = src;
+});
+// Not in a horror film: the 3D objects are emoji, cheerful by design (a candy-blue elevator in THE QUIET FLOOR, 2026-10-16).
+const OBJ_OK = PLAN.family !== 'dread';
+await Promise.all((PLAN.icons ?? []).flatMap((i) => [i.file && load(i.file, i.word, ICONS), OBJ_OK && i.obj && load(i.obj, i.word, OBJ)].filter(Boolean)));
+// the Director's first named icon that loaded (load order is random: "the first to arrive" put a meteor on a telescope film)
+// How solid each icon is: the share of its own bounding box it covers. A silhouette needs mass: mdi:aurora (thin
+// wavy lines, 0.45) drawn dark on the drop's disc read as a black comb (AURORA, 2026-10-16); the train (0.70) and the
+// compass (0.66) read fine.
+const SOLID = {};
+for (const [w, im] of Object.entries(ICONS)) {
+  const c = document.createElement('canvas'); c.width = c.height = 96;
+  const x2 = c.getContext('2d'); x2.drawImage(im, 0, 0, 96, 96);
+  const px = x2.getImageData(0, 0, 96, 96).data;
+  let n = 0, x0 = 96, y0 = 96, x1 = -1, y1 = -1;
+  for (let i = 0; i < 96 * 96; i++) if (px[i * 4 + 3] > 128) { n++; const x = i % 96, y = (i / 96) | 0; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  SOLID[w] = n ? n / ((x1 - x0 + 1) * (y1 - y0 + 1)) : 0;
+}
+const MOTIF = (PLAN.icons ?? []).map((i) => i.word).find((w) => ICONS[w]);
+// The subject as a 3D object: the Director's first named thing, when it has one (only when it has no flat icon, another
+// 3D thing: "the first with a 3D render" put a sun over a fire festival's name, 2026-10-16).
+// The first named thing wins when it has a 3D render, flat icon or not: SWAN (2026-10-17) had no flat swan, so the
+// first flat icon ("ice") became the motif and an ice cube stood over the ballet's name.
+const FIRST = PLAN.icons?.[0]?.word;
+const HERO = FIRST && OBJ[FIRST] ? FIRST : MOTIF ? (OBJ[MOTIF] ? MOTIF : null) : (PLAN.icons ?? []).map((i) => i.word).find((w) => OBJ[w]);
+/** A 3D object, centred on x, y, `size` px tall and wide, in its own colours. */
+function object(g, name, x, y, size, { alpha = 1, rot = 0 } = {}) {
+  const im = OBJ[name];
+  if (!im || !(size > 0)) return false;
+  g.save(); g.globalAlpha *= alpha; g.translate(x, y); g.rotate(rot);
+  g.drawImage(im, -size / 2, -size / 2, size, size);
+  g.restore();
+  return true;
+}
+const solid = (w) => (SOLID[w] ?? 0) >= 0.55;
+/** A 3D object's reflection on the floor under it: flipped at the picture's foot, fading out downwards. */
+const MIRROR = document.createElement('canvas');
+function reflection(g, im, x, floor, size, alpha) {
+  const w = Math.ceil(size), h = Math.ceil(size * 0.45);
+  if (!(alpha > 0) || w < 4) return;
+  MIRROR.width = w; MIRROR.height = h;
+  const m = MIRROR.getContext('2d');
+  m.setTransform(1, 0, 0, -1, 0, size * 0.93); m.drawImage(im, 0, 0, size, size);          // the PNG's foot at the top edge
+  m.setTransform(1, 0, 0, 1, 0, 0); m.globalCompositeOperation = 'destination-in';
+  const fade = m.createLinearGradient(0, 0, 0, h); fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+  m.fillStyle = fade; m.fillRect(0, 0, w, h); m.globalCompositeOperation = 'source-over';
+  g.save(); g.globalAlpha *= alpha; g.drawImage(MIRROR, x - size / 2, floor); g.restore();
+}
+const TINTED = new Map();
+function icon(g, name, x, y, size, { color = C.bone, alpha = 1, rot = 0 } = {}) {
+  const im = ICONS[name];
+  if (!im || !(size > 0)) return false;
+  const key = `${name}|${color}`;
+  if (!TINTED.has(key)) {
+    const c = document.createElement('canvas'); c.width = c.height = 512;
+    const x2 = c.getContext('2d');
+    x2.drawImage(im, 0, 0, 512, 512);
+    x2.globalCompositeOperation = 'source-in'; x2.fillStyle = color; x2.fillRect(0, 0, 512, 512);
+    TINTED.set(key, c);
+  }
+  g.save(); g.globalAlpha *= alpha; g.translate(x, y); g.rotate(rot);
+  g.drawImage(TINTED.get(key), -size / 2, -size / 2, size, size);
+  g.restore();
+  return true;
+}
+// A beat's icon behind its words: big, faint, slowly turning; the drop and the world fall back on the subject.
+function motif(g, b, lt, { y = S.y + S.h * 0.5, size = H * 0.62, alpha = 0.14, color = C.accent, fallback = false } = {}) {
+  if (PHOTOS[b.name] && alpha < 0.5) return false;                   // a photo is the picture: no faint icon over it
+  // a beat that named an icon nobody found shows none, not another one under its words (the seed labelled TOMATO)
+  const name = ICONS[b.icon] ? b.icon : fallback && !b.icon ? MOTIF : null;
+  if (!name) return false;
+  const p = clamp(lt / b.dur);
+  return icon(g, name, LAY === 'left' ? S.x + S.w * 0.72 : L.cx, y, size * (0.96 + 0.06 * p), { color, alpha: alpha * clamp(lt * 3), rot: (p - 0.5) * 0.06 });
+}
+
+// ---------------------------------------------------------------- air: the weather of a shot
+const BACK = new Set(['smoke', 'fog', 'dust', 'bokeh', 'beam']);
+const BOKEH = (() => { const r = rng(77); return [...Array(18)].map(() => ({ x: r(), y: r(), r: 30 + r() * 90, s: 0.3 + r() * 0.7 })); })();
+function air(g, kind, t, lt, back) {
+  if (!kind || kind === 'none' || BACK.has(kind) !== back) return;
+  switch (kind) {
+    case 'smoke': smoke(g, t + 3, { x: L.cx, y: H * 0.95, rate: 9, rise: 260 * U, spread: 260 * U, size: 90 * U, alpha: 0.16, color: '#9a9ca3' }); break;
+    case 'fog': fog(g, W, H, t, { y0: 0.4, density: 0.6, color: rgba(LIGHT ? '#ffffff' : C.bone, 0.5) }); break;
+    case 'dust': dust(g, W, H, t, { n: Math.round(200 * U), size: 1.6 * U }); break;
+    case 'beam': { const inBeam = beam(g, W * 0.22, -H * 0.1, 1.05, 0.62, Math.hypot(W, H) * 1.1, { alpha: 0.3, color: GLOW });
+      dust(g, W, H, t, { inBeam, n: Math.round(200 * U), size: 1.6 * U }); break; }
+    case 'bokeh': for (const b of BOKEH) bokeh(g, (b.x * W + t * 20 * b.s * U) % W, b.y * H, b.r * U, { alpha: 0.18 * b.s }); break;
+    case 'rain': rain(g, W, H, t + 2, { n: 480, length: 90 * U, alpha: 0.36 }); break;
+    case 'snow': snow(g, W, H, t + 4, { n: 280, size: 3 * U }); break;
+    case 'embers': embers(g, t + 2, { n: 140, x: 0, y: 0, w: W, h: H, rise: 60, color: rgba(C.accent, 0.7), size: 2.2 * U }); break;
+    case 'sparks': sparks(g, t, 0, L.cx, H * 0.75, { n: 120, color: C.accent }); break;
+    case 'light': lightLeak(g, W, H, 0.2 + lt * 0.5, { side: 'right', strength: 0.6, color: C.accent, color2: GLOW }); break;
+  }
+}
+// The ground is never flat: a soft pool of the film's light travels across it during each beat (the other side on
+// the next beat), so even a type-only shot has depth and motion. On paper it is a highlight (a shadow and a strong
+// vignette made the paper look grey and dirty: SPROUT, 2026-10-16).
+let CUR = null;
+// ---------------------------------------------------------------- photos (lib/photos.mjs in the crew)
+// A real photo under a beat (Pixabay, fetched by the crew into photos/): cover-fit, a slow push and drift, graded into the
+// film (less colour, the film's hue over it, a veil of the ink so the words read, a vignette). The code still draws
+// everything on top: the photo is a material, like the icons.
+const PHOTOS = {}, CREDIT = {};
+await Promise.all((PLAN.photos ?? []).map((p) => { CREDIT[p.beat] = p.user; return load(p.file, p.beat, PHOTOS); }));
+function photoGround(g, im, p, i, blur = 0) {
+  const s = Math.max(W / im.width, H / im.height) * (1.12 - 0.08 * p), dir = i % 2 ? -1 : 1;
+  const w = im.width * s, h = im.height * s;
+  // blur is part of the one filter: a g.filter set around this call was overwritten here (the end card and the drop were sharp)
+  g.save(); g.filter = (blur ? `blur(${blur * U}px) ` : '') + (LIGHT ? 'saturate(0.5) contrast(0.9) brightness(1.15)' : 'saturate(0.7) contrast(1.06) brightness(0.9)');
+  g.drawImage(im, (W - w) / 2 + dir * (p - 0.5) * W * 0.03, (H - h) / 2, w, h); g.restore();
+  g.save(); g.globalCompositeOperation = 'color'; g.globalAlpha = 0.4; g.fillStyle = mix(C.ink, C.accent, 0.35); g.fillRect(0, 0, W, H); g.restore();
+  g.fillStyle = rgba(C.ink, LIGHT ? 0.5 : 0.3); g.fillRect(0, 0, W, H);
+  const v = g.createRadialGradient(L.cx, H / 2, H * 0.3, L.cx, H / 2, H * 0.95);
+  v.addColorStop(0, rgba(C.ink, 0)); v.addColorStop(1, rgba(C.ink, 0.75)); g.fillStyle = v; g.fillRect(0, 0, W, H);
+  // a soft shade where the words sit: gold type vanished on a gold, busy photo ("NOBLE" on a brass buckle, HOUND & GOLD)
+  const sx = LAY === 'left' ? S.x + S.w * 0.3 : L.cx, sy = yAt(LAY === 'low' ? 0.7 : 0.45);
+  const sc = g.createRadialGradient(sx, sy, 0, sx, sy, W * 0.42);
+  sc.addColorStop(0, rgba(C.ink, LIGHT ? 0.35 : 0.5)); sc.addColorStop(1, rgba(C.ink, 0)); g.fillStyle = sc; g.fillRect(0, 0, W, H);
+}
+const ground = (g, c = C.ink) => {
+  g.fillStyle = c; g.fillRect(0, 0, W, H);
+  if (!CUR || c !== C.ink) return;
+  const i = PLAN.beats.indexOf(CUR.b), p = clamp(CUR.lt / CUR.b.dur), dir = i % 2 ? -1 : 1;
+  if (PHOTOS[CUR.b.name]) return photoGround(g, PHOTOS[CUR.b.name], p, i);
+  // a film told in photos ends on one too: the end card over the first, blurred and darker (HOUND & HEIRLOOM's flat green)
+  if (CUR.b.kind === 'title' && (PLAN.photos ?? []).length >= 3 && PHOTOS[PLAN.photos[0].beat]) {
+    photoGround(g, PHOTOS[PLAN.photos[0].beat], p, i, 14);
+    g.fillStyle = rgba(C.ink, LIGHT ? 0.4 : 0.45); g.fillRect(0, 0, W, H);
+    return;
+  }
+  const x = L.cx + dir * (p - 0.5) * W * 0.5, y = H * (0.35 + 0.1 * Math.sin(i * 1.7)), r = H * 0.9;
+  const grd = g.createRadialGradient(x, y, 0, x, y, r);
+  grd.addColorStop(0, rgba(LIGHT ? '#ffffff' : GLOW, LIGHT ? 0.45 : 0.16));
+  grd.addColorStop(1, rgba(LIGHT ? '#ffffff' : GLOW, 0));
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+};
+// The small line (a date, a place, a call to action): big enough for a phone (the critic called 42-46 px "microscopic"
+// in every eval run), fitted to the safe width, never in the bottom 16% where X draws its controls.
+// A small line that carries a number (10,000 USERS) is the point of the film: bigger, in the accent, counting up.
+// max: the end card's sub stays a line under the name ("JUNE 21" was drawn at 120 and sat on EMBER, 2026-10-16)
+function subline(g, str, y, lt, { color = C.bone, delay = 0.6, count = 0.9, max = Infinity, x = AX.x, align = AX.align, maxW = S.w * 0.84 } = {}) {
+  // a date is not a number to count (counting() skips it), and neither is a sentence: REEF RETURN's call to action read
+  // "5,731 PLANTED. HELP PLANT THE NEXT 10,000." mid-count (2026-10-17). A stat line (10,000 USERS) still counts.
+  const hasNum = String(str).trim().split(/\s+/).length <= 3 && counting(str, 0) !== str;
+  // a longer line at 74 (66 read as a speck under a photo: "English heritage, for hounds", 2026-10-17)
+  // a short line (14 characters or fewer: "IRON HOUR", "5 AM") is set bigger: at 66 it read as a speck on a phone (2026-10-17)
+  const size = Math.min((hasNum ? 120 : String(str).length <= 14 ? 84 : 74) * U, max, fitSize(g, str, T.text.weight, T.text.family, maxW, 0.02));
+  const shown = hasNum ? counting(str, (lt - delay) / count) : str;
+  text(g, shown, x, Math.min(y, H * 0.84), { ...T.text, size, color: hasNum ? C.accent : color, align, alpha: clamp((lt - delay) * 3) });
+}
+
+// A number counts up from zero as it lands (10,000 users, $10K MRR, 98%): the moment a milestone film is made of.
+// Years and times stay put (2026, 22:00); under 10 is not worth counting. The format of the final number is kept.
+const NUM = /^([$€£#]?)(\d{1,3}(?:[,.]\d{3})+|\d+)([%kKmM+]*)$/;
+function countUp(word, p) {
+  const m = NUM.exec(word);
+  if (!m || p >= 1) return word;
+  const n = Number(m[2].replace(/[,.]/g, '')), sep = /[,.]/.exec(m[2])?.[0];
+  // A small bare number is a name or a time, not a milestone: "RAMEN 24" counted 0 → 19 → 24, "9 TO 18" opening hours
+  // counted up (2026-10-16). Under 100 it counts only with a unit ($, %, k, +).
+  if (n < 10 || (n < 100 && !m[1] && !m[3]) || (!sep && n >= 1900 && n <= 2100)) return word;
+  const v = Math.round(n * cine(clamp(p)));
+  return m[1] + (sep ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, sep) : String(v)) + m[3];
+}
+// A date does not count: "MARCH 0 → 10 → 12" read as the wrong date on TIDEWATER's end card (2026-10-16).
+const MONTH = /^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)[A-Z]*\.?$|^(MON|TUE|WED|THU|FRI|SAT|SUN)[A-Z]*\.?$/i;
+const counting = (line, p) => line.split(' ').map((w, i, all) => (MONTH.test(all[i - 1] ?? '') || MONTH.test(all[i + 1] ?? '') ? w : countUp(w, p))).join(' ');
+
+// ---------------------------------------------------------------- recipes: (g, lt, beat, t) -> paints the shot
+const RECIPES = {
+  // the hook: the words land one per beat, frame 0 already readable
+  statement(g, lt, b, t) {
+    ground(g, b.invert ? C.accent : C.ink);
+    air(g, b.air ?? STYLE.hookAir, t, lt, true);
+    motif(g, b, lt);
+    const step = Math.min(BEAT, (b.dur * 0.6) / Math.max(1, b.words.length));
+    // the hook's frame 0 is the thumbnail: its number stands whole ("16 METRES DEEP" opened TIDE, 2026-10-17)
+    const ws = b.words.map((w, i) => [b === PLAN.beats[0] ? w : countUp(w, (lt - i * step) / 0.9), i * step]);
+    // two lines balanced by length, not by count: "EARTH SENT / IT" left a word alone (SIGNAL 0, 2026-10-17)
+    const half = ws.length < 2 ? 1 : [...Array(ws.length - 1).keys()].map((i) => i + 1).reduce((best, i) => {
+      const cost = (k) => breakCost(ws.slice(0, k).map(([w]) => String(w)), ws.slice(k).map(([w]) => String(w)));
+      return cost(i) < cost(best) ? i : best;
+    }, 1);                                                             // a tie leaves the short part on top: "WHO / SENT IT?"
+    // 2-3 phrases are 2-3 lines, each landing whole: NEON RUNNER's Critic regrouped the hook into three lines and the
+    // halves put them back on two (2026-10-17).
+    const grouped = ws.length >= 2 && ws.length <= 3 && phrased(b.words);
+    // five words and more on three lines: on two, "REMEMBER WHEN SPEED / HAD A SOUND?" ran at caption size (NEON RUNNER)
+    const third = Math.ceil(ws.length / 3);
+    const lines = grouped ? ws.map(([p, at]) => String(p).split(/\s+/).map((w) => [w, at]))
+      : ws.length >= 5 ? [ws.slice(0, third), ws.slice(third, 2 * third), ws.slice(2 * third)].filter((l) => l.length)
+      : ws.length > 2 ? [ws.slice(0, half), ws.slice(half)]
+      // two long words stack: "MORNINGS BURNED" and "WOLVES RETURN" ran across the frame at a third of the size (2026-10-17)
+      : ws.length === 2 && b.words.join(' ').length > 10 ? [[ws[0]], [ws[1]]] : [ws];
+    const gw = gateWeave(lt), sh = impactShake(lt, 0, { amp: 14, decay: 0.2 });
+    // The sub goes under the phrase's real bottom, not at a fixed 80%: in the `low` layout two lines of big type ran
+    // into it ("ONE WATER. TWO CONTINENTS." drawn over BOSPHORUS, NIGHT FERRY 2026-10-16). When that crosses the
+    // letterbox, the phrase moves up. The size is measured the way phrase() fits it.
+    // Flush left keeps a margin: the slow push-in (zoom to ~1.13) carried the first letters past the edge ("IDE TOO
+    // BULKY.", VOLTA ONE 2026-10-17).
+    const maxW = S.w * (LAY === 'left' ? 0.62 : 0.84);
+    g.save(); g.font = `${D.weight} 100px ${D.family}`;
+    const widest = Math.max(...lines.map((l) => l.reduce((a, [w]) => a + [...w].reduce((s, c) => s + g.measureText(c).width, 0), 0) + 22 * (l.length - 1)));
+    g.restore();
+    // and by the picture's height: three lines of a big serif reached the letterbox bar, the lines touching (PIXEL KEEPER, 2026-10-17)
+    const room = (PLAN.look.letterbox ? W / 2.39 : S.h) * (b.sub ? 0.62 : 0.74), cap = Math.min((b.sub ? 230 : 280) * U, room / (lines.length * 1.02));
+    const pSize = Math.min(cap, (maxW * 100) / Math.max(1, widest)), half2 = (lines.length * pSize * 1.02) / 2;
+    const limit = PLAN.look.letterbox ? H - (H - W / 2.39) / 2 - 24 * U : S.y + S.h;
+    let py = yAt(b.sub ? 0.4 : 0.5);
+    // never above the letterbox bar: the safe area starts inside it, and "BRING THE" sat under the bar (GLOW, 2026-10-17)
+    // ...where it lands after the camera: the push-in and the beat move zoom up to ~1.14 around the centre
+    const ceil = H / 2 - (H / 2 - (PLAN.look.letterbox ? Math.max(S.y, (H - W / 2.39) / 2 + 24 * U) : S.y)) / 1.14;
+    // with a sub the block and its line are centred together between the bars (GLOW sat high, its top on the bar)
+    if (b.sub) py = Math.min(Math.max((ceil + limit - 110 * U) / 2, ceil + half2), Math.max(ceil + half2, limit - half2 - 110 * U));
+    py = Math.max(py, ceil + half2 - pSize * 0.1);
+    camera(g, W, H, { x: gw.x + sh.x, y: gw.y + sh.y, rot: gw.rot + sh.r, zoom: 1.04 + lt * 0.03 }, () => {
+      // phrase() centres its lines: flush left is a narrower block on the left of the frame
+      // with a small line the words sit higher and a little smaller, so the line has room under them
+      phrase(g, lt + 0.12, lines, { x: LAY === 'left' ? S.x + S.w * 0.38 : L.cx, y: py, size: cap, maxW, ...D,
+        color: b.invert ? C.ink : C.bone, accent: b.invert ? C.bone : C.accent, ghost: rgba(b.invert ? C.ink : C.bone, 0.3) });
+      if (b.sub) subline(g, b.sub, py + half2 + 80 * U, lt, { delay: Math.min(b.dur * 0.45, step * b.words.length + 0.2) });
+    });
+    air(g, b.air, t, lt, false);
+  },
+  // a world to fly through: grid floor, god rays, fog, the title fitted to the safe area
+  world(g, lt, b, t) {
+    ground(g);
+    const cam = { y: -160, z: lt * 900, pitch: lerp(0.3, 0.17, cine(win(lt, 0, 3))), fov: 60 };
+    // over a photo the place is the photo: no grid floor
+    g.strokeStyle = rgba(C.bone, PHOTOS[b.name] ? 0 : 0.2); g.lineWidth = 1.6 * U;
+    for (let x = -3000; x <= 3000; x += 250) {
+      const a = project(x, 0, cam.z + 20, cam, W, H), z = project(x, 0, cam.z + 9000, cam, W, H);
+      if (a && z) { g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(z.x, z.y); g.stroke(); }
+    }
+    for (let z = Math.ceil(cam.z / 250) * 250; z < cam.z + 9000; z += 250) {
+      const a = project(-3000, 0, z, cam, W, H), e = project(3000, 0, z, cam, W, H);
+      if (a && e) { g.globalAlpha = clamp(1 - (z - cam.z) / 9000); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(e.x, e.y); g.stroke(); }
+    }
+    g.globalAlpha = 1;
+    godRays(g, W / 2, -H * 0.15, lt, { angle: Math.PI / 2, spread: 0.7, length: H * 1.3, color: rgba(C.accent, 0.9), alpha: 0.2 });
+    air(g, b.air ?? 'fog', t, lt, true);
+    motif(g, b, lt, { fallback: true, y: S.y + S.h * 0.8, size: H * 0.55, alpha: 0.16, color: GLOW }); // low, under the title, not behind it
+    // A long line goes on two big lines: one line of five words shrank to caption size (the Perseids hook, 2026-10-16).
+    const lines = grow(g, rowsOf(b.words, 16), S.w * 0.88, { one: 210 * U, two: 200 * U, tracking: 0.04 }), two = lines.length > 1;
+    const rise = sp(lt + 0.1, 'heavy');
+    const size = Math.min(lines.length > 2 ? 150 * U : two ? 200 * U : 210 * U,          // 170 one line: "AI ASSISTANT" read small (LUMEN)
+      ...lines.map((l) => fitSize(g, l, D.weight, D.family, S.w * 0.88, 0.04)));
+    const ty = yAt(0.46) + (lines.length - 1) * size * 0.5;
+    lines.forEach((l, n) => letters(g, l, AX.x, ty - (lines.length - 1 - n) * size * 1.05 + (1 - rise) * 60 * U, { ...D, size, tracking: 0.04, color: C.bone, align: AX.align },
+      (k) => ({ a: clamp((lt + 0.2 - n * 0.15 - k * 0.025) * 6) })));
+    const u = sp(lt - 0.55, 'snappy');
+    g.fillStyle = C.accent;
+    if (LAY === 'left') g.fillRect(AX.x, ty + size * 0.34, S.w * 0.4 * u, 8 * U);
+    else g.fillRect(L.cx - S.w * 0.2 * u, ty + size * 0.34, S.w * 0.4 * u, 8 * U);
+    if (b.sub) subline(g, b.sub, ty + size * 0.34 + 96 * U, lt, { delay: 0.8 });
+    air(g, b.air, t, lt, false);
+  },
+  // one word per beat, each slammed in with a shake
+  slams(g, lt, b, t) {
+    const n = Math.max(1, b.words.length), each = b.dur / n, i = clamp(Math.floor(lt / each), 0, n - 1), wt = lt - i * each;
+    const word = countUp(b.words[i] ?? '', (lt - i * each) / Math.max(0.3, each * 0.7)), airs = b.airs ?? [b.air], a = airs[i % airs.length];
+    // Every other word is a hard cut to the accent: a full frame of colour, the word in ink (the escalation strobes).
+    const inv = n > 2 && i % 2 === 1;
+    ground(g, inv ? C.accent : C.ink);
+    if (!inv) air(g, a, t, wt, true);
+    if (!inv) motif(g, b, lt);
+    const sh = impactShake(wt, 0, { amp: 20, decay: 0.18 });
+    camera(g, W, H, { x: sh.x, y: sh.y, rot: sh.r, zoom: 1.04 - 0.04 * sp(wt, 'heavy') + wt * 0.02 }, () => {
+      const size = Math.min(520 * U, fitSize(g, word, D.weight, D.family, S.w * 0.84, 0.01));
+      letters(g, word, AX.x, yAt(0.5) + size * 0.36, { ...D, size, tracking: 0.01, align: AX.align, color: inv ? C.ink : i === n - 1 ? C.accent : C.bone },
+        (k) => dropIn(wt, k, { gap: 0.03, dist: 160 * U, rot: 0.1, seed: i }));
+    });
+    if (!inv) air(g, a, t, wt, false);
+  },
+  // a line of text in its own air, revealed letter by letter with a slow push
+  card(g, lt, b, t) {
+    ground(g);
+    air(g, b.air ?? 'dust', t, lt, true);
+    motif(g, b, lt);
+    // Big enough to carry the frame (150 px read as a caption on a phone), and the letters slowly open up.
+    const open = 0.03 + 0.05 * cine(clamp(lt / b.dur));
+    // As the hook, frame 0 is already readable: the letters start half revealed (AURORA's rerun opened on a near-black
+    // frame 0, detail 0.8, while the card's letters faded in).
+    const rl = b === PLAN.beats[0] ? lt + 0.45 : lt;
+    // A long line goes on two lines ("SOMETHING KNOCKS INSIDE THE HULL" shrank to small type on one, 2026-10-16).
+    const lines = grow(g, rowsOf(b.words, 18), S.w * 0.86, { one: 230 * U, two: 230 * U, tracking: 0.08 });
+    const size = Math.min(lines.length > 2 ? 170 * U : 230 * U, ...lines.map((l) => fitSize(g, l, D.weight, D.family, S.w * 0.86, 0.08)));
+    const y = yAt(0.5) - (lines.length - 1) * size * 0.5;
+    camera(g, W, H, { zoom: 1 + lt * 0.025 }, () => {
+      lines.forEach((l, n) => letters(g, counting(l, lt / Math.max(0.4, b.dur * 0.6)), AX.x, y + n * size * 1.1, { ...D, size, tracking: open, color: C.bone, align: AX.align },
+        (k) => ({ a: clamp((rl - n * 0.12 - k * 0.03) * 4), dy: (1 - sp(rl - n * 0.12 - k * 0.03, 'snappy')) * 30 * U })));
+      if (b.sub) subline(g, b.sub, y + (lines.length - 1) * size * 1.1 + size * 0.55 + 60 * U, lt, { color: C.accent });
+    });
+    air(g, b.air, t, lt, false);
+  },
+  // speed: a hyperspace tunnel behind the words
+  rush(g, lt, b, t) {
+    ground(g);
+    // additive light vanishes on a light ground (TIDY's rush, 2026-10-17: plain mint): there the streaks are painted
+    if (LIGHT) plainBlend(g, () => space.hyperspace(g, W, H, lt + 0.5, { speed: 3000 + lt * 3000, colors: [C.bone, C.accent] }));
+    else space.hyperspace(g, W, H, lt + 0.5, { speed: 3000 + lt * 3000, colors: [C.bone, C.accent] });
+    // a long line on two (SUMMIT's "8,849 M DON'T LOOK DOWN" ran small across the tunnel, 2026-10-16)
+    const rows = rowsOf(b.words, 16), size = Math.min(rows.length > 2 ? 180 * U : 260 * U, ...rows.map((l) => fitSize(g, l, D.weight, D.family, S.w * 0.86, 0.02)));
+    const y0 = yAt(0.5) + size * 0.35 - (rows.length - 1) * size * 0.55;
+    const s = sp(lt, 'slam');
+    camera(g, W, H, { zoom: 1.3 - 0.3 * s }, () => {
+      g.wordSpacing = `${(size * 0.12).toFixed(1)}px`;                   // a serif's own space ran DON'T LOOK DOWN together
+      rows.forEach((line, n) => text(g, line, AX.x, y0 + n * size * 1.08, { ...D, size, color: C.bone, align: AX.align, alpha: clamp(lt * 5) }));
+      g.wordSpacing = '0px';
+      if (b.sub) subline(g, b.sub, y0 + (rows.length - 1) * size * 1.08 + 110 * U, lt, { delay: 0.3 });
+    });
+    air(g, b.air, t, lt, false);
+  },
+  // the film inside a device: the words decode on a screen, framed by brackets and a tracker
+  hud(g, lt, b, t) {
+    ground(g);
+    air(g, b.air, t, lt, true);
+    // A long line goes on two lines and the frame is a readout, not a word on an empty field (KITE, 2026-10-16: "HEARS
+    // IT BEFORE YOU DO" at 100 px in a bracket for 3.6 s, the flattest beat of the film): the subject's icon behind,
+    // a scan line sweeping, a live trace under the words.
+    motif(g, b, lt, { alpha: 0.1, fallback: true });
+    const rows = grow(g, rowsOf(b.words, 14, 2), S.w * 0.8, { one: 210 * U, two: 190 * U, tracking: 0.04 }), two = rows.length > 1;
+    const size = Math.min(two ? 190 * U : 210 * U, ...rows.map((l) => fitSize(g, l, D.weight, D.family, S.w * 0.8, 0.04)));
+    const y = S.y + S.h * 0.5 - (two ? size * 0.55 : 0), w = S.w * 0.86, h = size * (two ? 2.95 : 2.0), p = cine(clamp(lt / 0.5));
+    hud.bracket(g, L.cx - w / 2, y - size * 1.05, w, h, { p, color: rgba(C.bone, 0.7), width: 2 * U });
+    const sy = y - size * 1.05 + h * ((lt * 0.7) % 1);
+    g.fillStyle = rgba(C.accent, 0.16 * p); g.fillRect(L.cx - w / 2, sy, w, 3 * U);
+    g.strokeStyle = rgba(C.accent, 0.55 * p); g.lineWidth = 2.5 * U; g.beginPath();
+    for (let i = 0; i <= 120; i++) { const x = L.cx - w / 2 + (w * i) / 120, a = Math.sin(i * 0.31 + lt * 9) * Math.sin(i * 0.07 - lt * 2); g[i ? 'lineTo' : 'moveTo'](x, y - size * 1.05 + h + 34 * U + a * 26 * U); }
+    g.stroke();
+    // decoded by 0.5 s (the still at 0.6 s reads); as the hook, frame 0 is already readable: no decode ("IN=%Q3S" opened LEDGERLY)
+    const shown = b === PLAN.beats[0] ? rows : rows.map((l) => draw.scramble(l, clamp(0.35 + lt / 0.35), lt, 7)); // a third decoded at once, done by 0.23 s: half a second of "&C+/ *" read as a glitch to two Critics (2026-10-17)
+    camera(g, W, H, { zoom: 1 + lt * 0.02 }, () => shown.forEach((l, n) => text(g, l, L.cx, y + size * 0.32 + n * size * 1.1, { ...D, size, tracking: 0.04, color: C.bone })));
+    const barTop = PLAN.look.letterbox ? (H - W / 2.39) / 2 + 16 * U : S.y;   // the tag stays out from under the bar
+    if (b.sub) hud.tag(g, L.cx - w / 2, Math.max(barTop + 50 * U, y - size * 1.05 - 40 * U), b.sub, { p: clamp((lt - 0.4) * 3), size: 46 * U, bg: C.accent, color: C.ink }); // 38 read as a speck on a phone (COOL ROOFS)
+    hud.crosshair(g, L.cx + w * 0.42, y - size * 0.8, 26 * U, { p, color: C.accent });
+    air(g, b.air, t, lt, false);
+  },
+  // The thing itself, big and lit, the words beside it: a product shot. Free hand-written shots were often plain even when
+  // they passed (2026-10-17), and a recipe film had no real picture in its middle: the 3D object stands on a floor with
+  // its reflection, in a pool of the film's light, a ring of light orbiting it. A flat icon when there is no 3D render.
+  reveal(g, lt, b, t) {
+    const name = OBJ[b.icon] || ICONS[b.icon] ? b.icon : HERO ?? MOTIF;
+    if (!name) return RECIPES.card(g, lt, b, t);
+    const is3d = !!OBJ[name], side = LAY !== 'low';                  // words beside the thing; in the low layout under it
+    ground(g);
+    air(g, b.air ?? 'dust', t, lt, true);
+    const hook = b === PLAN.beats[0], rl = hook ? lt + 0.45 : lt;
+    const inn = hook ? 1 : sp(lt, 'heavy'), a = hook ? 1 : clamp(lt * 4), p = cine(clamp(lt / b.dur));
+    const ox = (side ? S.x + S.w * 0.72 : L.cx) + (1 - inn) * W * 0.12, oy = S.y + S.h * (side ? 0.47 : 0.36);
+    const os = (side ? H * 0.6 : H * 0.46) * (0.94 + 0.08 * p), bob = Math.sin(t * 1.4) * 8 * U, floor = oy + os * (is3d ? 0.43 : 0.33); // a flat icon is drawn at 0.7
+    // the pool of light it stands in, and its shadow on the floor
+    if (LIGHT) {
+      const disc = g.createRadialGradient(ox, oy, 0, ox, oy, os * 0.7);
+      disc.addColorStop(0, rgba(C.accent, 0.16 * a)); disc.addColorStop(1, rgba(C.accent, 0));
+      g.fillStyle = disc; g.fillRect(0, 0, W, H);
+    } else draw.glow(g, ox, oy, os * 0.68, GLOW, 0.5 * a);
+    g.save(); g.fillStyle = rgba(LIGHT ? C.bone : '#000000', (LIGHT ? 0.16 : 0.4) * a);
+    g.beginPath(); g.ellipse(ox, floor + 4 * U, os * 0.34, os * 0.05, 0, 0, Math.PI * 2); g.fill(); g.restore();
+    // the ring: its back half behind the thing, its front half and the light running on it in front
+    const ring = (from, to, al) => { g.save(); g.strokeStyle = rgba(C.accent, al * a); g.lineWidth = 3 * U; g.beginPath(); g.ellipse(ox, oy + os * 0.06, os * 0.62, os * 0.15, -0.1, from, to); g.stroke(); g.restore(); };
+    const th = lt * 2.4 + 1, dot = () => {
+      const x = ox + Math.cos(th) * os * 0.62 * Math.cos(-0.1) - Math.sin(th) * os * 0.15 * Math.sin(-0.1), y = oy + os * 0.06 + Math.cos(th) * os * 0.62 * Math.sin(-0.1) + Math.sin(th) * os * 0.15 * Math.cos(-0.1);
+      if (!LIGHT) draw.glow(g, x, y, 34 * U, mix(C.accent, '#ffffff', 0.4), 0.9 * a);
+      g.fillStyle = rgba(LIGHT ? C.accent : '#ffffff', a); g.beginPath(); g.arc(x, y, 5 * U, 0, Math.PI * 2); g.fill();
+    };
+    ring(Math.PI, Math.PI * 2, 0.35);
+    if (Math.sin(th) < 0) dot();
+    if (is3d) {
+      reflection(g, OBJ[name], ox, floor, os, 0.22 * a);
+      object(g, name, ox, oy + bob, os, { alpha: a, rot: Math.sin(t * 0.8) * 0.03 });
+    } else icon(g, name, ox, oy + bob, os * 0.7, { color: LIGHT ? C.accent : mix(GLOW, '#ffffff', 0.55), alpha: a });
+    ring(0, Math.PI, 0.6);
+    if (Math.sin(th) >= 0) dot();
+    // the words: a column on the left (or a block under the thing), landing letter by letter
+    const maxW = side ? S.w * 0.46 : S.w * 0.84, x = side ? S.x + S.w * 0.03 : L.cx, align = side ? 'left' : 'center';
+    // a column is narrow: a long line goes on three short ones ("HUSH ONE LEARNS / YOUR CITY" ran at 86 px, HUSH ONE)
+    let lines = grow(g, rowsOf(b.words, 12), maxW, { one: 190 * U, two: 170 * U, tracking: 0.02 });
+    const ws = b.words.join(' ').split(/\s+/);
+    // ...when three set it bigger, measured in the face: Bungee's "RISING FROM / THE GROUND" (11 letters a line) ran small
+    // too (CONCRETE WAVES)
+    const fitL = (ls, cap) => Math.min(cap, ...ls.map((l) => fitSize(g, l, D.weight, D.family, maxW, 0.02)));
+    if (side && lines.length === 2 && ws.length >= 3) {
+      let best = null;
+      for (let i = 1; i < ws.length - 1; i++) for (let j = i + 1; j < ws.length; j++) {
+        const three = [ws.slice(0, i), ws.slice(i, j), ws.slice(j)].map((x) => x.join(' ')), cost = Math.max(...three.map((x) => x.length));
+        if (SMALL_END.test(ws[i - 1]) || SMALL_END.test(ws[j - 1])) continue;                 // "RISING / FROM THE / GROUND": no line ends on a small word
+        if (!best || cost < best[0]) best = [cost, three];
+      }
+      if (best && fitL(best[1], 150 * U) > 1.12 * fitL(lines, 170 * U)) lines = best[1];
+    }
+    const size = Math.min(lines.length > 2 ? 150 * U : lines.length > 1 ? 170 * U : 190 * U, ...lines.map((l) => fitSize(g, l, D.weight, D.family, maxW, 0.02)));
+    const y0 = side ? oy - (lines.length - 1) * size * 0.54 + size * 0.35 - (b.sub ? 40 * U : 0) : S.y + S.h * 0.8 - (lines.length - 1) * size * 1.08;
+    lines.forEach((l, n) => letters(g, counting(l, lt / Math.max(0.4, b.dur * 0.6)), x, y0 + n * size * 1.08, { ...D, size, tracking: 0.02, color: n === lines.length - 1 && lines.length > 1 ? C.accent : C.bone, align },
+      (k) => ({ a: clamp((rl - 0.1 - n * 0.14 - k * 0.025) * 5), dy: (1 - sp(rl - 0.1 - n * 0.14 - k * 0.025, 'snappy')) * 26 * U })));
+    if (b.sub) subline(g, b.sub, y0 + (lines.length - 1) * size * 1.08 + size * 0.42 + 64 * U, lt, { delay: 0.7, x, align, maxW });
+    air(g, b.air, t, lt, false);
+  },
+  // the quiet before the hit: an image, never black
+  drop(g, lt, b, t) {
+    // a photo-led film's drop is its photo, darker: the held breath (HOUND & HEIRLOOM)
+    // ...and a drop with nothing of its own (no photo, no icon, no object) borrows the film's last photo, blurred and dark:
+    // HOUND & HEIRLOOM's and DEEP SIGNAL's drops were black frames (detail 0.1-0.2, 2026-10-17)
+    const bare = !PHOTOS[b.name] && !OBJ[b.icon] && !ICONS[b.icon] && !HERO && !MOTIF;
+    const borrowed = bare ? (PLAN.photos ?? []).map((p) => PHOTOS[p.beat]).filter(Boolean).at(-1) : null;
+    if (PHOTOS[b.name]) { photoGround(g, PHOTOS[b.name], clamp(lt / b.dur), PLAN.beats.indexOf(b)); g.fillStyle = rgba(C.ink, 0.3); g.fillRect(0, 0, W, H); }
+    else if (borrowed) { photoGround(g, borrowed, clamp(lt / b.dur), PLAN.beats.indexOf(b), 16); g.fillStyle = rgba(C.ink, 0.5); g.fillRect(0, 0, W, H); }
+    else ground(g, LIGHT ? C.ink : mix(C.ink, '#000000', 0.5));
+    // nothing at all to show: the film's light itself, a disc that swells, so the pause is a picture and not a black frame
+    if (bare && !borrowed) {
+      const sw = cine(clamp(lt / Math.max(0.4, b.dur)));
+      const disc = g.createRadialGradient(L.cx, S.y + S.h * 0.42, 0, L.cx, S.y + S.h * 0.42, H * (0.3 + 0.06 * sw));
+      disc.addColorStop(0, rgba(LIGHT ? C.accent : mix(GLOW, '#ffffff', 0.4), LIGHT ? 0.35 : 0.6)); disc.addColorStop(0.5, rgba(LIGHT ? C.accent : GLOW, 0.25)); disc.addColorStop(1, rgba(LIGHT ? C.accent : GLOW, 0));
+      g.fillStyle = disc; g.fillRect(0, 0, W, H);
+    }
+    const inBeam = beam(g, L.cx, -H * 0.05, Math.PI / 2, 0.22, H * 1.1, { alpha: 0.16, color: GLOW });
+    dust(g, W, H, t + 8, { inBeam, n: 120, alpha: 0.7, drift: [2, 3] });
+    // The subject as a silhouette against a disc of the film's light (a moon, a lamp): a flat white pictogram read as
+    // clip-art. On paper the icon is simply drawn in ink.
+    const hy = S.y + S.h * (b.words.length ? 0.4 : 0.48), hs = H * 0.5;
+    // A thin icon gives way to the film's subject when that one is solid; when neither is, it is drawn in light, not
+    // as a silhouette.
+    // A 3D object of the thing, when there is one: lit and in its own colours, floating in the light (SALT & EMBER's
+    // drop showed a flat glyph, 2026-10-16). Then the flat icon as before.
+    // the beat's thing, else the subject: a drop that named a thing nobody found went black (LOW TIDE's "fishing boat")
+    const obj = OBJ[b.icon] ? b.icon : !ICONS[b.icon] ? HERO : null;
+    if (obj) {
+      const grow = cine(clamp(lt / Math.max(0.4, b.dur)));
+      draw.glow(g, L.cx, hy, hs * 0.62, LIGHT ? C.accent : GLOW, (LIGHT ? 0.18 : 0.45) * clamp(lt * 2));
+      // half there at the cut: from a full frame of accent the drop opened near black (detail 0.7, CONCRETE WAVES)
+      object(g, obj, L.cx, hy + Math.sin(t * 1.6) * 6 * U, hs * (0.8 + 0.06 * grow), { alpha: clamp(0.5 + lt * 3), rot: Math.sin(t * 0.9) * 0.04 });
+    }
+    const named = obj ? null : ICONS[b.icon] ? b.icon : MOTIF;
+    const pick = named && !solid(named) && MOTIF && solid(MOTIF) ? MOTIF : named;
+    const dark = !LIGHT && pick && solid(pick);
+    if (dark) {
+      const grow = cine(clamp(lt / Math.max(0.4, b.dur)));
+      const disc = g.createRadialGradient(L.cx, hy, 0, L.cx, hy, hs * (0.62 + 0.08 * grow));
+      disc.addColorStop(0, rgba(mix(GLOW, '#ffffff', 0.35), 0.55)); disc.addColorStop(0.55, rgba(GLOW, 0.32)); disc.addColorStop(1, rgba(GLOW, 0));
+      g.fillStyle = disc; g.fillRect(0, 0, W, H);
+    }
+    if (pick && !dark && !LIGHT) draw.glow(g, L.cx, hy, hs * 0.5, GLOW, 0.35 * clamp(lt * 2));
+    const hero = obj || pick ? obj || motif(g, { ...b, icon: pick }, lt, { y: hy, size: hs * (dark ? 0.82 : 0.6), alpha: 0.96, color: LIGHT ? C.bone : dark ? mix(C.ink, '#000000', 0.55) : mix(GLOW, '#ffffff', 0.5) }) : false;
+    if (LIGHT && !hero) {                              // light does not show on paper: a line of ink draws the pause
+      const u = cine(clamp(lt / Math.max(0.3, b.dur)));
+      g.fillStyle = C.accent; g.fillRect(L.cx - S.w * 0.16 * u, S.y + S.h * (b.words.length ? 0.66 : 0.5), S.w * 0.32 * u, 5 * U);
+    }
+    if (b.words.length) {                                              // two quiet words, still readable on a phone
+      const line = b.words.join(' '), size = Math.min((PHOTOS[b.name] ? 140 : 84) * U, fitSize(g, line, D.weight, D.family, S.w * 0.7, 0.08)); // on a photo the words are the picture's caption, not a whisper in the dark
+      text(g, line, L.cx, S.y + S.h * (hero ? 0.8 : 0.56), { ...D, size, tracking: 0.08, color: C.bone, alpha: 0.85 * clamp(lt * 2) });
+    }
+  },
+  // the end card: smash cut, embers, a flare; the last frame is the poster
+  // The end card is the payoff of every film, so it is the WOW (2026-10-16: "the same type-and-flare card in every
+  // film"). The letters slam in one by one, the hit flashes the frame and sends a shockwave out, the film's subject
+  // rises above the name as an emblem, then a glint of light runs across the letters like a logo catching the light.
+  title(g, lt, b, t) {
+    ground(g);
+    const weather = b.air ?? STYLE.titleAir;
+    air(g, weather, t, lt, true);
+    // a long name given as one string goes on two lines ("THE GREAT BEE COUNT" ran tiny on one, 2026-10-16)
+    // ...and a name sent word by word is one name: ["THE","LAST","TRAIN"] stood as "THE" over "LAST TRAIN" (2026-10-17)
+    const one = b.words.length === 1 || b.words.every((w) => !/\s/.test(String(w).trim()));
+    // ...and in a wide face a name of 10+ letters goes on two lines when that sets it at least 40% bigger ("ROME
+    // MARATHON" ran across the frame at caption height, 2026-10-17)
+    // 0.86 of the safe width: at 0.9 the slam-in zoom and the drift carried DEEP SIGNAL's D to the frame edge (2026-10-17)
+    const fitW = (l) => fitSize(g, l, D.weight, D.family, S.w * 0.86, 0), name = b.words.join(' ');
+    const split = one && name.includes(' ') && name.length >= 10 && Math.min(300 * U, ...twoLines(name, 0).map(fitW)) > 1.4 * Math.min(300 * U, fitW(name));
+    const [l1, ...rest] = one ? twoLines(name, split ? 0 : 14) : b.words, l2 = rest.join(' ');
+    let big = Math.min(300 * U, fitSize(g, l2 || l1 || '', D.weight, D.family, S.w * 0.86, 0), l2 ? fitSize(g, l1, D.weight, D.family, S.w * 0.86, 0) : Infinity);
+    let y0 = S.y + S.h * (LAY === 'low' ? (l2 ? 0.5 : 0.62) : l2 ? 0.42 : 0.55);
+    // the emblem: the subject's icon above the name, when there is room for it in the safe area
+    // the emblem is the title beat's own icon when the Director gave it one (LUMEN, 2026-10-17: the hook's clock stood over
+    // an AI assistant's name, the title asked for a brain), else the film's subject
+    const own = b.icon && (OBJ[b.icon] || ICONS[b.icon]) ? b.icon : null;
+    const eObj = own ? (OBJ[own] ? own : null) : HERO, eIcon = own ? (ICONS[own] ? own : null) : MOTIF;
+    let em = eIcon || eObj ? Math.min(H * 0.2, Math.max(H * 0.13, big * 0.95)) : 0;
+    const emY = () => y0 - big * 0.78 - 36 * U - em / 2;
+    // Push the name down to make room; if that is not enough, a smaller emblem. (A strict "<" against a top that had
+    // just been placed exactly on the edge dropped the emblem on rounding error: SPROUT had none, 2026-10-16.)
+    // the top the emblem may reach: the safe area, or the letterbox bar when there is one (AURORA's train was cut in
+    // half by the bar, 2026-10-16)
+    const top = PLAN.look.letterbox ? Math.max(S.y, (H - W / 2.39) / 2 + 18 * U) : S.y;
+    if (em && emY() - em / 2 < top) y0 = Math.min(y0 + (top - (emY() - em / 2)), S.y + S.h * 0.72);
+    while (em > H * 0.08 && emY() - em / 2 < top - 1) em *= 0.85;
+    if (emY() - em / 2 < top - 1) em = 0;
+    // The whole block (emblem, one or two lines, the sub) between the bars: pushed down for the emblem, a two-line
+    // name put its sub on top of the second line, half under the letterbox (the A/B's SALT & / EMBER, 2026-10-16).
+    // Moved up first, then smaller.
+    const bottom = PLAN.look.letterbox ? H - (H - W / 2.39) / 2 - 18 * U : S.y + S.h;
+    for (let k = 0; k < 14; k++) {
+      const foot = y0 + (l2 ? big * 0.95 : 0) + (b.sub ? big * 0.4 + 56 * U : big * 0.25);
+      if (foot <= bottom) break;
+      const room = (em ? emY() - em / 2 : y0 - big * 0.78) - top;
+      if (room >= foot - bottom) { y0 -= foot - bottom; break; }
+      y0 -= Math.max(0, room);
+      big *= 0.9;
+      if (em) em = Math.max(H * 0.08, Math.min(em, big * 0.95));
+    }
+    const land = 0.12 + Math.max(l1?.length ?? 0, l2.length) * 0.03;      // when the last letter has landed
+    const sh = impactShake(lt, land, { amp: 26, decay: 0.25 }), gw = gateWeave(lt);
+    const lines = [[l1, y0, l2 ? C.bone : C.accent], [l2, y0 + big * 0.95, C.accent]].filter(([l]) => l);
+    const paintLines = (color, fx) => lines.forEach(([l, y, c], n) => letters(g, l, AX.x, y, { ...D, size: big, align: AX.align, color: color ?? c }, fx(n)));
+    camera(g, W, H, { x: sh.x + gw.x, y: sh.y + gw.y, rot: sh.r, zoom: 1.12 - 0.12 * sp(lt, 'slam') + lt * 0.02 }, () => {
+      if (em) {
+        const p = sp(lt - land - 0.15, 'snappy'), ex = AX.align === 'left' ? AX.x + em / 2 : AX.x, ey = emY();
+        if (!LIGHT && p > 0) {
+          const halo = g.createRadialGradient(ex, ey, 0, ex, ey, em * 1.4);
+          halo.addColorStop(0, rgba(GLOW, 0.35 * p)); halo.addColorStop(1, rgba(GLOW, 0));
+          g.fillStyle = halo; g.fillRect(ex - em * 1.5, ey - em * 1.5, em * 3, em * 3);
+        }
+        // the subject's 3D object when there is one (a touch bigger: the PNG has air around it), else its tinted icon
+        if (!(eObj && object(g, eObj, ex, ey + (1 - p) * 30 * U, em * 1.25 * (0.7 + 0.3 * p), { alpha: clamp(p) })) && eIcon)
+          icon(g, eIcon, ex, ey + (1 - p) * 30 * U, em * (0.7 + 0.3 * p), { color: C.accent, alpha: clamp(p) });
+      }
+      paintLines(null, (n) => (k) => dropIn(lt, k + n * 3, { gap: 0.03, dist: 220 * U, rot: 0.09, seed: 7 + n }));
+      // the glint: a band of light crossing the settled letters
+      const gp = clamp((lt - land - 0.55) / 0.75);
+      if (gp > 0 && gp < 1) {
+        const bx = lerp(S.x - 260 * U, S.x + S.w + 260 * U, cine(gp)), bw = 110 * U, top = y0 - big * 1.1, bot = y0 + big * (l2 ? 1.2 : 0.3);
+        g.save();
+        g.beginPath(); g.moveTo(bx - bw, bot); g.lineTo(bx, top); g.lineTo(bx + bw, top); g.lineTo(bx, bot); g.closePath(); g.clip();
+        g.globalAlpha = LIGHT ? 0.5 : 0.8;
+        paintLines(LIGHT ? mix(C.accent, '#ffffff', 0.5) : '#ffffff', () => () => ({}));
+        g.restore();
+      }
+      if (b.sub) subline(g, b.sub, y0 + big * (l2 ? 1.35 : 0.75), lt, { delay: land + 0.45, max: 72 * U });
+    });
+    if (weather === 'embers') embers(g, t + 2, { n: 140, x: 0, y: 0, w: W, h: H, rise: 60, color: rgba(C.accent, 0.7), size: 2.2 * U });
+    else air(g, weather, t, lt, false);
+    // the hit: a flash and a shockwave from the name, on the score's peak
+    const hp = (lt - land) / 0.7;
+    if (hp > 0 && hp < 1) {
+      const cx = AX.align === 'left' ? S.x + S.w * 0.3 : L.cx, cy = y0 - big * 0.3;
+      g.save();
+      g.strokeStyle = rgba(LIGHT ? C.accent : GLOW, 0.55 * (1 - hp)); g.lineWidth = 7 * U * (1 - hp);
+      g.beginPath(); g.arc(cx, cy, cine(hp) * W * 0.62, 0, Math.PI * 2); g.stroke();
+      const fl = clamp(1 - hp * 4);
+      if (fl > 0) { g.globalCompositeOperation = LIGHT ? 'source-over' : 'screen'; g.fillStyle = rgba(LIGHT ? C.accent : mix(GLOW, '#ffffff', 0.6), (LIGHT ? 0.18 : 0.42) * fl); g.fillRect(0, 0, W, H); }
+      g.restore();
+    }
+    if (!LIGHT) flare(g, W, H, (LAY === 'left' ? S.x + S.w * 0.55 : L.cx + big * 1.3), y0 + big * 0.4, { strength: 0.3 * clamp((lt - land) * 2), color: GLOW });
+  },
+};
+
+// ---------------------------------------------------------------- custom shots, written by the Builder
+// shots/<beat>.js: export default function draw(g, t, k) — t is the time inside the shot (0..dur), k is the kit below.
+// The film's beat grid (every musical beat, in seconds), for shots that pulse on the music. beatPulse takes the grid;
+// a shot that passes one number (the prompt once documented it that way: "beats is not iterable") still works.
+const GRID = [...Array(Math.ceil(PLAN.duration / BEAT) + 1)].map((_, i) => +(i * BEAT).toFixed(4));
+// The names free Builders reach for: k.look.ground and k.C.ground crashed shots ("reading 'ground'", ROME FINAL 2026-10-17).
+const KIT = { W, H, U, S, L, C: { ...C, ground: C.ink, text: C.bone }, look: PLAN.look, T, D, BEAT, grid: GRID, cx: L.cx, cy: H / 2, rgba, layout: LAY, light: LIGHT, tint: GLOW, icons: Object.keys(ICONS), icon: (g, name, x, y, size, o = {}) => (overWords(g, x, y, size, o.alpha), icon(g, name, x, y, size, o)),
+  objects: Object.keys(OBJ), object: (g, name, x, y, size, o = {}) => (overWords(g, x, y, size, o.alpha), object(g, name, x, y, size, o)), ...motion, ...draw, ...atmos, ...particles, ...space, ...captions, ...hud,
+  beatPulse: (t, beats = GRID, ...rest) => motion.beatPulse(t, Array.isArray(beats) ? beats : GRID, ...rest),
+  // A short line fitted to a width comes out enormous: AURORA's rerun (2026-10-16) fitted "ARCTIC CIRCLE" to half the
+  // frame under the name and it ran off the bottom, and the Critic's shorter sub made it bigger. Fitted sizes stop at a
+  // third of the frame, and a hand-written shot's text partly under the frame edge or the letterbox moves inside it (text
+  // wholly outside, sliding in or out, is left alone).
+  fitSize: (...a) => Math.min(draw.fitSize(...a), 0.34 * H),
+  // dropIn(t, i) is letter i's { dy, r, a }; three paid attempts of SALT & EMBER's fire shot (2026-10-16) called its
+  // result as the per-letter function ("fireDrop is not a function"). The result is now both: read it, or call it with
+  // another letter.
+  dropIn: (t, i = 0, o) => Object.assign((j) => draw.dropIn(t, j, o), draw.dropIn(t, i, o)),
+  text: (g, str, x, y, o = {}) => { const [y2, o2] = inFrame(g, String(str), x, y, o); return draw.text(g, str, x, y2, o2); },
+  letters: (g, str, x, y, o = {}, fn) => {
+    const { size = 64, weight = '700', family = T.text.family, align = 'center', tracking = 0 } = o, w = String(str);
+    g.save(); g.font = font(weight, size, family);
+    const width = [...w].reduce((a, c) => a + g.measureText(c).width, 0) + tracking * size * Math.max(0, w.length - 1), m = g.measureText(w);
+    g.restore();
+    const l = align === 'center' ? x - width / 2 : align === 'right' ? x - width : x;
+    EDGE.word?.(g, w, l, y - m.actualBoundingBoxAscent, l + width, y + m.actualBoundingBoxDescent, o.color);
+    return draw.letters(g, str, x, y, o, fn);
+  } };
+// An opaque icon or 3D object drawn by a hand-written shot over one of the beat's words already on the frame: VOLT 9's
+// shot (2026-10-16) put a sneaker on top of ONLY, 500 and PAIRS. The words' boxes are the ones the text guard records
+// on CUR for this frame; a faint icon behind the words (alpha under 0.5) is fine.
+const coveredTold = new Set();
+function overWords(g, x, y, size, alpha = 1) {
+  if (!CUR || CUR.b.kind !== 'custom' || alpha * g.globalAlpha < 0.5 || !(size > 0)) return;
+  if (CUR.lt < CUR.b.dur * 0.35 || CUR.lt > CUR.b.dur * 0.9) return;
+  const m = g.getTransform(), h = size * 0.35;                       // the picture inside the PNG's air
+  const l = m.a * (x - h) + m.e, r = m.a * (x + h) + m.e, t = m.d * (y - h) + m.f, b = m.d * (y + h) + m.f;
+  (CUR.icons ??= []).push({ l, t, r, b });                           // a word drawn later on top of it is caught too
+  for (const o of CUR.boxes ?? []) {
+    const iw = Math.min(r, o.r) - Math.max(l, o.l), ih = Math.min(b, o.b) - Math.max(t, o.t);
+    const key = CUR.b.name + o.word;
+    if (iw > 0 && ih > 0 && iw * ih > 0.15 * (o.r - o.l) * (o.b - o.t) && !coveredTold.has(key)) {
+      coveredTold.add(key);
+      console.error(`[shot ${CUR.b.name}] covered: an icon is drawn on top of "${o.word}" ${CUR.lt.toFixed(2)} s into the shot: draw the icon first and the words last, or give them separate places`);
+    }
+  }
+}
+/** A line of more than `max` letters, split into two balanced lines at a space. */
+// The lines of a beat: the words as the Director or the Critic grouped them, when they grouped a long line into 2-3
+// phrases (ENDGAME, 2026-10-17: the Critic's ["ONE MOVE", "LEFT."] was re-joined and re-split by length, so its fix
+// could not show), else the line split in two by length.
+// Phrases, not a word list: ["ONE MOVE", "LEFT."] or ["HE IS", "NOT A", "PAWN"] are lines; ["ONE", "NIGHT", "40 TEAMS"]
+// is a list sent word by word and stood one word per line, small and uneven (BERLIN AI HACK, 2026-10-17).
+// Runs fn with 'lighter' (additive) blending turned into normal painting, on this context only.
+function plainBlend(g, fn) {
+  const P = CanvasRenderingContext2D.prototype, d = Object.getOwnPropertyDescriptor(P, 'globalCompositeOperation');
+  Object.defineProperty(g, 'globalCompositeOperation', { configurable: true, get() { return d.get.call(g); }, set(v) { d.set.call(g, v === 'lighter' || v === 'screen' ? 'source-over' : v); } });
+  g.save(); g.globalAlpha *= 0.45;                                  // painted streaks are softer, the words stay on top
+  try { fn(); } finally { g.restore(); delete g.globalCompositeOperation; }
+}
+// One line of two or more words goes on two lines when that sets it at least 40% bigger: "THOUSAND LIGHTS" in a wide
+// serif ran at caption height on its card (LANTERN NIGHTS, 2026-10-17).
+// Measured as the recipe sets them: its own caps for one and two lines and its tracking (without them "SMOKE JASMINE"
+// looked big enough on one line, and stayed small: NOCTURNE).
+function grow(g, lines, maxW, { one, two, tracking = 0 }) {
+  if (lines.length !== 1 || !String(lines[0]).includes(' ')) return lines;
+  const fit = (l, cap) => Math.min(cap, fitSize(g, l, D.weight, D.family, maxW, tracking)), split = twoLines(lines[0], 0);
+  return Math.min(...split.map((l) => fit(l, two))) > 1.25 * fit(lines[0], one) ? split : lines;
+}
+function phrased(words) {
+  const multi = words.filter((w) => /\s/.test(String(w).trim())).length;
+  return multi >= 1 && words.length - multi <= 1;
+}
+function rowsOf(words, max = 16, most = 3) {
+  const line = words.join(' ');
+  if (words.length >= 2 && words.length <= most && phrased(words)) return words.map(String);
+  return twoLines(line, max);
+}
+// A line does not end on a small word: "RECORDED IN / ONE NIGHT" (BLUE HOUR, 2026-10-17). Such a break costs as much
+// as six letters of imbalance.
+const SMALL_END = /^(A|AN|THE|IN|ON|AT|OF|TO|BY|FOR|AND|OR|BUT|WITH|FROM|YOUR|MY|OUR|NO|IS)$/i;
+const breakCost = (first, second) => Math.abs(first.join(' ').length - second.join(' ').length) + (SMALL_END.test(String(first.at(-1) ?? '').replace(/[^\p{L}]/gu, '')) ? 6 : 0);
+function twoLines(line, max = 16) {
+  const w = String(line ?? '').split(' ');
+  if (line.length <= max || w.length < 2) return [line];
+  let best = 1;
+  for (let i = 1; i < w.length; i++) if (breakCost(w.slice(0, i), w.slice(i)) < breakCost(w.slice(0, best), w.slice(best))) best = i;
+  return [w.slice(0, best).join(' '), w.slice(best).join(' ')];
+}
+// After a hand-written shot paints a frame mid-beat: its words all tiny, or its sub microscopic, is a shot error.
+// ORBITAL DRIFT's "O2 / 90 SEC" and THE NINTH KEY's line were small boxes in an empty frame for 3 s, NEON KITCHEN's sub
+// was unreadable (2026-10-16): the empty-frame check passes them because there is some detail.
+const smallTold = new Set();
+function sizeCheck(g) {
+  if (!CUR || CUR.b.kind !== 'custom' || !CUR.boxes?.length || CUR.lt < CUR.b.dur * 0.4 || CUR.lt > CUR.b.dur * 0.9) return;
+  hiddenCheck(g);
+  const ch = g.canvas.height, subWords = new Set(String(CUR.b.sub ?? '').toUpperCase().split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean));
+  const main = CUR.boxes.filter((o) => !subWords.has(o.word)), sub = CUR.boxes.filter((o) => subWords.has(o.word));
+  const tall = (list) => Math.max(0, ...list.map((o) => o.b - o.t)) / ch;
+  if (main.length && tall(main) < 0.065 && !smallTold.has(CUR.b.name)) {
+    smallTold.add(CUR.b.name);
+    console.error(`[shot ${CUR.b.name}] small: the beat's words are ${Math.round(tall(main) * 100)}% of the frame height ${CUR.lt.toFixed(2)} s into the shot: the main words must be at least 8% tall (fitSize to most of the width), a phone shows this at 360 px`);
+  }
+  // 3%: at 2.4% HOUND & GOLD's "Rich colours. Polished gold hardware." passed and read as a speck on a phone
+  if (sub.length && tall(sub) < 0.03 && !smallTold.has(CUR.b.name + '~sub')) {
+    smallTold.add(CUR.b.name + '~sub');
+    console.error(`[shot ${CUR.b.name}] small: the sub is ${(tall(sub) * 100).toFixed(1)}% of the frame height: draw k.beat.sub at least 3.5% tall (about 38 px at 1080)`);
+  }
+}
+// A word drawn, then painted over: YOGA's shot (2026-10-17) laid a black mat shape over STILL after writing it. Icons
+// and 3D objects are caught as they are drawn; a shape is not, so after the frame is painted the word's box must still
+// hold pixels of the word's own colour. Only plain colours (a gradient fill is skipped), once per word and shot.
+const hiddenTold = new Set();
+const subWordsOf = (b) => new Set(String(b.sub ?? '').toUpperCase().split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, '')).filter(Boolean));
+function hiddenCheck(g) {
+  const cw = g.canvas.width, ch = g.canvas.height;
+  for (const o of CUR.boxes) {
+    const key = CUR.b.name + '#' + o.word;
+    // main words at full strength only: a fading caption blends into its ground and matches its colour on few pixels
+    if (!o.color || hiddenTold.has(key) || o.alpha < 0.9 || subWordsOf(CUR.b).has(o.word)) continue;
+    const l = Math.max(0, Math.floor(o.l)), t = Math.max(0, Math.floor(o.t)), w = Math.min(cw, Math.ceil(o.r)) - l, h = Math.min(ch, Math.ceil(o.b)) - t;
+    if (w < 6 || h < 6) continue;
+    g.save(); g.fillStyle = o.color; const c = g.fillStyle; g.restore();
+    if (!/^#[0-9a-f]{6}$/i.test(c)) continue;
+    const [r0, g0, b0] = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+    let px;
+    try { px = g.getImageData(l, t, w, h).data; } catch { return; }
+    let hit = 0, n = 0;
+    for (let i = 0; i < px.length; i += 16) { n++; if (Math.abs(px[i] - r0) + Math.abs(px[i + 1] - g0) + Math.abs(px[i + 2] - b0) < 90) hit++; }
+    if (n > 20 && hit / n < 0.02) {
+      hiddenTold.add(key);
+      console.error(`[shot ${CUR.b.name}] hidden: "${o.word}" is drawn, then covered by something painted over it ${CUR.lt.toFixed(2)} s into the shot: draw the picture first and the words last, on top, or give them separate places`);
+    } else if (n > 20 && hit / n > 0.85) {
+      // ...or written on a shape of its own colour: that same YOGA mat was C.bone, and so was STILL on it
+      hiddenTold.add(key);
+      console.error(`[shot ${CUR.b.name}] hidden: "${o.word}" is drawn on a shape of its own colour ${CUR.lt.toFixed(2)} s into the shot, so it cannot be read: words need a contrasting ground (k.C.bone words on k.C.ink, or the words beside the shape)`);
+    }
+  }
+}
+function inFrame(g, str, x, y, o) {
+  let size = o.size ?? 64;
+  const base = o.baseline ?? 'alphabetic', align = o.align ?? 'center';
+  const [up, down] = base === 'middle' ? [0.5, 0.5] : base === 'top' || base === 'hanging' ? [0, 1] : base === 'bottom' ? [1, 0] : [0.75, 0.22];
+  // the edge is the letterbox bar when there is one: the rerun's sub sat under the bottom bar, not off the frame
+  const pad = 6 * U, bar = PLAN.look.letterbox ? Math.max(0, (H - W / 2.39) / 2) : 0, lo = bar + pad, hi = H - bar - pad;
+  if (y + down * size <= lo || y - up * size >= hi) return [y, o]; // wholly outside: on its way in or out, left alone
+  // too wide for its side of the frame, or taller than the picture: smaller
+  const perPx = draw.fitSize(g, str, o.weight ?? '700', o.family ?? T.text.family, 1, o.tracking ?? 0, o.stretch);
+  const half = align === 'center' ? Math.min(x, W - x) * 2 : align === 'right' || align === 'end' ? x : W - x;
+  size = Math.min(size, (half - 2 * pad) * perPx, (hi - lo) / (up + down || 1));
+  // partly under the edge: moved inside it
+  if (y + down * size > hi) y = hi - down * size;
+  else if (y - up * size < lo) y = lo + up * size;
+  return [y, size === (o.size ?? 64) ? o : { ...o, size }];
+}
+const CUSTOM = {};
+for (const b of PLAN.beats.filter((x) => x.kind === 'custom')) {
+  try { CUSTOM[b.name] = (await import(`./shots/${b.name}.js?v=${PLAN.rev ?? 0}`)).default; }
+  // "k is not defined" twice in five free films (2026-10-17): the kit used outside draw(); the message says where it lives
+  catch (e) { console.error(`[shot ${b.name}] does not load: ${e.message}${/^k is not defined/.test(e.message) ? ': k (the kit) exists only inside draw(g, t, k): move every line that reads k. into the function body, nothing at the top of the module but constants' : ''}`); }
+}
+const failed = new Set();
+// Every shot moves for its whole length: a frame that lands and then holds read as a slide (2026-10-16, both test
+// trailers: 3 of 4 frames per beat identical). One camera move per beat, never the same twice in a row; the zoom
+// stays above 1 so a drift never shows the frame's edge. The drop barely moves: it is the held breath.
+const MOVES = [
+  (p) => ({ zoom: 1 + 0.07 * p }),                                         // push in
+  (p) => ({ zoom: 1.08 - 0.07 * p }),                                      // pull out
+  (p) => ({ zoom: 1.05, x: (0.5 - p) * 60 * U }),                          // drift left
+  (p) => ({ zoom: 1.05, x: (p - 0.5) * 60 * U, rot: (p - 0.5) * 0.006 }),  // drift right, a touch of roll
+  (p) => ({ zoom: 1.04 + 0.03 * p, y: (0.5 - p) * 40 * U }),               // rise
+];
+const MOVE0 = [...PLAN.title].reduce((a, c) => a + c.charCodeAt(0), 0);
+function move(b, lt) {
+  const i = PLAN.beats.indexOf(b), p = cine(clamp(lt / b.dur));
+  if (b.kind === 'drop') return { zoom: 1.02 + 0.03 * p };
+  return { x: 0, y: 0, rot: 0, ...MOVES[(MOVE0 + i) % MOVES.length](p) };
+}
+function paint(b, g, lt, t) {
+  CUR = { b, lt };
+  camera(g, W, H, move(b, lt), () => shoot(b, g, lt, t));
+  sizeCheck(g);
+  // where the photo comes from (Pixabay asks for it): small, in a corner, above the letterbox bar
+  if (PHOTOS[b.name]) {
+    const bar = PLAN.look.letterbox ? (H - W / 2.39) / 2 : 0;
+    CUR = null;                                                           // not a beat word for the text guard
+    text(g, `Photo: ${CREDIT[b.name] || 'Pixabay'} / Pixabay`, W - S.x, H - bar - 22 * U, { ...T.text, size: 20 * U, color: C.bone, align: 'right', alpha: 0.55 });
+    CUR = { b, lt };
+  }
+}
+function shoot(b, g, lt, t) {
+  const fn = CUSTOM[b.name];
+  if (fn && !failed.has(b.name)) {
+    g.save();
+    // words and sub always there: "Cannot read properties of undefined (reading 'replace')" was k.beat.sub on a beat without
+    // one, three times in ten free films (2026-10-16)
+    // k.photo: the beat's photo (or null); k.photoGround(g) paints it as the graded ground and says whether it did
+    const photoKit = { photo: PHOTOS[b.name] ?? null, photoGround: (g2) => (PHOTOS[b.name] ? (photoGround(g2, PHOTOS[b.name], clamp(lt / b.dur), PLAN.beats.indexOf(b)), true) : false) };
+    try { fn(g, lt, { ...KIT, ...photoKit, beat: { ...b, words: b.words ?? [], sub: b.sub ?? '' }, t }); g.restore(); return; }
+    catch (e) {
+      g.restore(); failed.add(b.name);
+      const line = new RegExp(`shots/${b.name}\\.js[^:]*:(\\d+):\\d+`).exec(e.stack ?? '')?.[1];   // where in the Builder's code
+      console.error(`[shot ${b.name}] throws at ${lt.toFixed(2)}s${line ? ` (line ${line})` : ''}: ${e.message}`);
+    }
+  }
+  (RECIPES[b.fallback] ?? RECIPES[b.kind] ?? RECIPES.card)(g, lt, b, t);
+}
+
+// ---------------------------------------------------------------- the film
+let at = 0;
+const film = withTransitions(sequence(PLAN.beats.map((b) => {
+  const from = at; at += b.dur;
+  return { name: b.name, dur: b.dur, draw: (g, lt) => paint(b, g, lt, from + lt) };
+})), PLAN.beats.slice(1).map((b, i) => {
+  // The film's two cuts (the casting draw), alternating; hard cuts into and out of the drop and onto the title.
+  const type = b.cut ?? (b.kind === 'title' || b.kind === 'drop' || PLAN.beats[i].kind === 'drop' ? 'cut' : STYLE.cuts[i % STYLE.cuts.length]);
+  return type === 'cut' ? null : { at: b.name, type, dur: 0.45, x: AX.align === 'left' ? S.x + S.w * 0.3 : L.cx, y: yAt(0.5), scale: 2.4,
+    dir: type === 'push' ? (i % 2 ? -1 : 1) : undefined, angle: type === 'wipe' ? (i % 2 ? Math.PI : 0) : undefined, feather: 120 * U,
+    color: C.accent, color2: GLOW, edge: type === 'iris' ? C.accent : undefined };
+}).filter(Boolean), W, H);
+
+studio({
+  canvas: document.getElementById('c'), w: W, h: H, fps: PLAN.fps, duration: film.duration,
+  fonts: T.fonts, audio: 'audio/mix.wav', markers: film.markers,
+  draw(g, t, { frame: f }) {
+    film.draw(g, t);
+    // bloom and halation are light on dark: a paper ground would wash out
+    finish(g, W, H, f, { bloom: LIGHT ? 0.12 : 0.45, bloomWide: LIGHT ? 0 : 0.3, halation: LIGHT ? 0 : 0.25, chroma: 0.0016, grain: 0.07, vignette: LIGHT ? 0.1 : 0.5, grade: PLAN.look.grade ?? 'neutral',
+      letterbox: PLAN.look.letterbox ? 1 : 0, aspect: 2.39 });
+  },
+});
+</script>
+</body>
+</html>

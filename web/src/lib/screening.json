@@ -1,0 +1,891 @@
+[
+ {
+  "id": "q01-whisky",
+  "title": "ISLAY 25",
+  "prompt": "Teaser for ISLAY 25, a single malt aged twenty-five years in sherry casks by the sea. 900 bottles only. Release December 1.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#D98A2B",
+  "ground": "#150B06",
+  "seconds": 183,
+  "usd": 0.1736,
+  "requests": null,
+  "tokens": 38467,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 6.5,
+  "summary": "I saw a warm amber sheet of six frames. It has a clean serif hierarchy and a full-bleed amber \"BOTTLES\" slam, and the drop (a barrel icon with \"ONLY 900 EXIST\") sets up the title card, which carries the date. The hook \"BY THE SEA\" is a quiet, small, dark title-like line with no contradiction, and the slam frame shows only \"BOTTLES\", so the \"900\" and \"ONE CASK\" setup is lost. The only picture of the subject is a small barrel icon, and the \"silhouette theatre\" device is barely visible.",
+  "notes": [
+   {
+    "text": "The hook is a vague, small, dark scenic title that would fit any coastal brand. Open on the surprising fact in big words instead, and keep ISLAY as the sub.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The sub is tiny and sits on top of a barrel shape. Say what the product is, so a muted viewer knows it is whisky from the first second.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The sampled slam shows only a lone 'BOTTLES' on flat amber, with dark text on a bright field and no setup. Make the words carry the story, and end on 900 BOTTLES so the number lands before the drop.",
+    "status": "rolled back after the second look"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "world",
+    "words": "25 YEARS. 900 BOTTLES.",
+    "takes": 2,
+    "still": "/screening/q01-whisky/hook.jpg"
+   },
+   {
+    "name": "card",
+    "kind": "hand-written",
+    "words": "SHERRY CASKS",
+    "takes": 2,
+    "still": "/screening/q01-whisky/card.jpg"
+   },
+   {
+    "name": "card2",
+    "kind": "card",
+    "words": "WAITING",
+    "takes": 1,
+    "still": "/screening/q01-whisky/card2.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "ONE CASK 900 BOTTLES",
+    "takes": 3,
+    "still": "/screening/q01-whisky/slams.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "ONLY 900 EXIST",
+    "takes": 1,
+    "still": "/screening/q01-whisky/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "ISLAY 25",
+    "takes": 1,
+    "still": "/screening/q01-whisky/title.jpg"
+   }
+  ],
+  "video": "/screening/q01-whisky/film.mp4",
+  "poster": "/screening/q01-whisky/poster.jpg"
+ },
+ {
+  "id": "p04-neon",
+  "title": "NEON KITCHEN",
+  "prompt": "Teaser for NEON KITCHEN, a cooking show where chefs cook with only a blowtorch. Streaming on Netflix October 3.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#FF3FA4",
+  "ground": "#07060B",
+  "seconds": 157,
+  "usd": 0.1295,
+  "requests": null,
+  "tokens": 27388,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 7.4,
+  "summary": "I saw a clean six-beat sheet: a bold hook (\"NO STOVE. NO OVEN. JUST FIRE.\"), a 3D blowtorch with a neon grid, a typed card, a spark tunnel, a flame drop and a pink neon title with the Netflix date. The picture of the blowtorch and the flame emoji-style icon give it real subject imagery, but the flame icon looks stock, the world sub is tiny, and the hook's line break splits \"NO / OVEN\".",
+  "notes": [
+   {
+    "text": "The hook breaks mid-phrase ('NO STOVE. NO / OVEN.'), which weakens the contradiction. Make it three clean lines, one per thought, so it reads in one second on a phone.",
+    "status": "not applied: the new value is the one it already has"
+   },
+   {
+    "text": "The sub under ONE TOOL is microscopic and low, near the bottom edge, so it is unreadable at phone size. Shorten it so it can be set larger, and keep it clear of the bottom 13%.",
+    "status": "rolled back after the second look"
+   },
+   {
+    "text": "The three words are jammed into one line, and SEAR CHAR FLAMBÉ nearly touches. Show the words one at a time on the torch flash, not as a single crowded line.",
+    "status": "not applied: the new value is the one it already has"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "statement",
+    "words": "NO STOVE. NO OVEN. JUST FIRE.",
+    "takes": 1,
+    "still": "/screening/p04-neon/hook.jpg"
+   },
+   {
+    "name": "world",
+    "kind": "hand-written",
+    "words": "ONE TOOL",
+    "takes": 4,
+    "still": "/screening/p04-neon/world.jpg"
+   },
+   {
+    "name": "card",
+    "kind": "card",
+    "words": "CHEFS CAN'T HIDE.",
+    "takes": 1,
+    "still": "/screening/p04-neon/card.jpg"
+   },
+   {
+    "name": "rush",
+    "kind": "rush",
+    "words": "SEAR CHAR FLAMBÉ",
+    "takes": 1,
+    "still": "/screening/p04-neon/rush.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "HEAT.",
+    "takes": 1,
+    "still": "/screening/p04-neon/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "NEON KITCHEN",
+    "takes": 1,
+    "still": "/screening/p04-neon/title.jpg"
+   }
+  ],
+  "video": "/screening/p04-neon/film.mp4",
+  "poster": "/screening/p04-neon/poster.jpg"
+ },
+ {
+  "id": "g01-bakery",
+  "title": "LEVAIN",
+  "prompt": "Opening teaser for LEVAIN, a sourdough bakery in Bologna that opens at 5am: the bread is ready before the city is. Opens May 2.",
+  "tier": "free",
+  "duration": 10,
+  "accent": "#FFC857",
+  "ground": "#3B0F8C",
+  "seconds": 256,
+  "usd": 0,
+  "requests": null,
+  "tokens": 44776,
+  "models": {
+   "director": "openai/gpt-oss-120b",
+   "builder": "openai/gpt-oss-120b",
+   "critic": "nvidia/nemotron-3.5-super-vl:free"
+  },
+  "score": 6,
+  "summary": "I saw a five-beat type-only teaser for LEVAIN on a purple ground with gold accents: an abstract hook, a card, another abstract question, a single slam, and a title card with the open date and time. The look is consistent and the ending carries the call to action, but the hook and middle beats never say bakery or bread clearly enough for a muted scroller.",
+  "notes": [
+   {
+    "text": "The hook asks 'WHO WAITS DAWN?' but never mentions bread or bakery, so a muted scroller at phone size won't know what this is.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The card sub 'BOLOGNA'S DAWN' is a generic line that fits any trailer and withholds the date and call to action until the end.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The slams beat shows only 'MORNING,' a generic word that wastes the beat instead of naming the product.",
+    "status": "rolled back after the second look"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "statement",
+    "words": "BREAD BEFORE DAWN",
+    "takes": 2,
+    "still": "/screening/g01-bakery/hook.jpg"
+   },
+   {
+    "name": "card",
+    "kind": "hand-written",
+    "words": "LEVAIN RISES",
+    "takes": 3,
+    "still": "/screening/g01-bakery/card.jpg"
+   },
+   {
+    "name": "statement2",
+    "kind": "statement",
+    "words": "WHEN BREAD BREATHES?",
+    "takes": 1,
+    "still": "/screening/g01-bakery/statement2.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "FRESH AROMA MORNING",
+    "takes": 3,
+    "still": "/screening/g01-bakery/slams.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "LEVAIN",
+    "takes": 1,
+    "still": "/screening/g01-bakery/title.jpg"
+   }
+  ],
+  "video": "/screening/g01-bakery/film.mp4",
+  "poster": "/screening/g01-bakery/poster.jpg"
+ },
+ {
+  "id": "q04-coral",
+  "title": "REEF RETURN",
+  "prompt": "Campaign film for REEF RETURN, a charity regrowing coral off Bali: 10,000 fragments planted, help plant the next 10,000.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#FF7A5C",
+  "ground": "#03222E",
+  "seconds": 195,
+  "usd": 0.1407,
+  "requests": null,
+  "tokens": 27374,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 6.8,
+  "summary": "I saw a teal film with a strong, legible hook (\"THIS REEF WENT QUIET\"), a coral-orange \"TIME\" accent, a slams frame with real coral imagery, a quiet drop with a coral icon and \"10,000\", and an orange title card with a fish. The slams frame stacks three words on busy coral, so \"RETURN\" runs into the coral and sits near the bottom edge. The title's sub is small and the \"10,000\" payoff is weak.",
+  "notes": [
+   {
+    "text": "The three stacked words fill the frame, and RETURN collides with the busy coral and sits low in the frame, near the X controls. Cut to two words so each can sit bigger and clear of the coral. RETURN is already the title.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The call to action is tiny and thin, and it will vanish at phone width. Keep the brief's numbers and add the place so a stranger gets the where. Keep the line short enough to run larger.",
+    "status": "rolled back after the second look"
+   },
+   {
+    "text": "The drop is properly quiet, but a bare '10,000' with no noun means nothing. Add 'PLANTED' so the held breath carries the fact before the title answers it.",
+    "status": "kept after the second look"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "card",
+    "words": "THIS REEF WENT QUIET",
+    "takes": 1,
+    "still": "/screening/q04-coral/hook.jpg"
+   },
+   {
+    "name": "statement",
+    "kind": "statement",
+    "words": "ONE FRAGMENT AT A TIME",
+    "takes": 1,
+    "still": "/screening/q04-coral/statement.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "hand-written",
+    "words": "PLANT GROW",
+    "takes": 3,
+    "still": "/screening/q04-coral/slams.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "10,000 PLANTED",
+    "takes": 2,
+    "still": "/screening/q04-coral/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "REEF RETURN",
+    "takes": 3,
+    "still": "/screening/q04-coral/title.jpg"
+   }
+  ],
+  "video": "/screening/q04-coral/film.mp4",
+  "poster": "/screening/q04-coral/poster.jpg"
+ },
+ {
+  "id": "f04-charity",
+  "title": "BLOOD DONATION DAY",
+  "prompt": "Blood donation day at Milano Centrale station, Saturday 9 to 18: one bag of blood saves three lives.",
+  "tier": "free",
+  "duration": 10,
+  "accent": "#D42A18",
+  "ground": "#F1ECE2",
+  "seconds": 540,
+  "usd": 0,
+  "requests": null,
+  "tokens": 54046,
+  "models": {
+   "director": "nvidia/nemotron-3.5-super-vl:free",
+   "builder": "nvidia/nemotron-3.5-super-vl:free",
+   "critic": "nvidia/nemotron-3.5-super-vl:free"
+  },
+  "score": 8,
+  "summary": "I saw a five-beat type trailer on cream with black and red ink: a bold hook, the station and date, a red \"LIVES\" slam, a quiet blood-bag drop, and a locked title card. It reads clearly muted and hits every brief fact, but the drop frame is missing its \"NOW\" sub, leaving the quiet peak without its call to action.",
+  "notes": [
+   {
+    "text": "[{\"beat\": \"drop\", \"field\": \"sub\", \"value\": \"NOW\", \"text\": The drop frame shows the bag and \"GIVE\" but omits the planned \"NOW\" sub, so the silent peak loses its urgent call to action.\"}]",
+    "status": "not applied: no beat named undefined"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "card",
+    "words": "ONE BAG SAVES THREE LIVES",
+    "takes": 1,
+    "still": "/screening/f04-charity/hook.jpg"
+   },
+   {
+    "name": "world",
+    "kind": "hand-written",
+    "words": "MILANO CENTRALE",
+    "takes": 2,
+    "still": "/screening/f04-charity/world.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "GIVE BLOOD SAVE LIVES",
+    "takes": 1,
+    "still": "/screening/f04-charity/slams.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "GIVE",
+    "takes": 1,
+    "still": "/screening/f04-charity/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "BLOOD DONATION DAY",
+    "takes": 1,
+    "still": "/screening/f04-charity/title.jpg"
+   }
+  ],
+  "video": "/screening/f04-charity/film.mp4",
+  "poster": "/screening/f04-charity/poster.jpg"
+ },
+ {
+  "id": "p03-bees",
+  "title": "THE GREAT BEE COUNT",
+  "prompt": "Teaser for THE GREAT BEE COUNT, a citizen-science weekend: count the bees in your garden, save the meadows. May 20 to 21.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#D42A18",
+  "ground": "#F6E7A8",
+  "seconds": 178,
+  "usd": 0.159,
+  "requests": null,
+  "tokens": 36956,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 7,
+  "summary": "I saw a clean, warm yellow film with big, readable ink type in every beat. A real question opens it, a bee icon appears only in the quiet drop, and the end card carries the title with the dates and call to action. The hook and statement2 are type only, so the \"extreme close-up bee\" never shows, and the scale-shift device is barely visible. The peak, EVERY BEE COUNTS, is a type card with no swarm, so it feels like a template.",
+  "notes": [
+   {
+    "text": "The peak is meant to be a bee splitting into a swarm of gold dots, but the frame shows only two lines on flat yellow. Swap the beam for bokeh so gold dots fill the frame around the line and the scale-shift lands as the release.",
+    "status": "rolled back after the second look"
+   },
+   {
+    "text": "The hook is only type on a flat ground, and the bee it promises is missing. Put gold particles or a bee in the frame so the first second shows the subject, not just a question.",
+    "status": "rolled back after the second look"
+   },
+   {
+    "text": "NOBODY KNOWS is vague, and the sub is small and thin on a phone. Make the line more specific, and keep the sub short.",
+    "status": "kept after the second look"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "statement",
+    "words": "HOW MANY BEES TODAY?",
+    "takes": 3,
+    "still": "/screening/p03-bees/hook.jpg"
+   },
+   {
+    "name": "statement2",
+    "kind": "statement",
+    "words": "NOBODY COUNTED",
+    "takes": 2,
+    "still": "/screening/p03-bees/statement2.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "hand-written",
+    "words": "COUNT YOUR GARDEN",
+    "takes": 2,
+    "still": "/screening/p03-bees/slams.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "ONE BEE",
+    "takes": 1,
+    "still": "/screening/p03-bees/drop.jpg"
+   },
+   {
+    "name": "statement3",
+    "kind": "statement",
+    "words": "EVERY BEE COUNTS",
+    "takes": 3,
+    "still": "/screening/p03-bees/statement3.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "THE GREAT BEE COUNT",
+    "takes": 1,
+    "still": "/screening/p03-bees/title.jpg"
+   }
+  ],
+  "video": "/screening/p03-bees/film.mp4",
+  "poster": "/screening/p03-bees/poster.jpg"
+ },
+ {
+  "id": "q02-chess",
+  "title": "ENDGAME",
+  "prompt": "Trailer for ENDGAME, a documentary about a 12-year-old chess prodigy from Lagos facing a grandmaster. In cinemas March 7.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#E8A93A",
+  "ground": "#0E0A06",
+  "seconds": 198,
+  "usd": 0.2138,
+  "requests": null,
+  "tokens": 47401,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 7,
+  "summary": "I saw a consistent warm-gold, letterboxed sheet. The hook is a clear line on a dark field, the LAGOS beat has a real checkerboard floor, the quiet drop is a knight over YOUR MOVE, and the title has the date. The hook type is smallish and thin with a small sub, so it's weak at 360 px. The slams frames are type only, and PAWN shows a faint king shape cropped at the top edge.",
+  "notes": [
+   {
+    "text": "The hook sits small and thin in a dark field, so it won't stop a thumb on a phone. Break it into two stacked lines so the type grows, and keep the sub short.",
+    "status": "not applied: the new value is the one it already has"
+   },
+   {
+    "text": "The sub is tiny. Put the boy and Lagos in the first second so a muted viewer knows who this is about.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The payoff frame shows only PAWN, with a king shape cut off at the top edge. The line is the story, so show it as a phrase. Fewer, bigger slams read at one glance and clear the edge.",
+    "status": "not applied: the new value is the one it already has"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "card",
+    "words": "ONE MOVE LEFT.",
+    "takes": 2,
+    "still": "/screening/q02-chess/hook.jpg"
+   },
+   {
+    "name": "world",
+    "kind": "hand-written",
+    "words": "LAGOS",
+    "takes": 2,
+    "still": "/screening/q02-chess/world.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "TWELVE YEARS OLD NO FEAR",
+    "takes": 1,
+    "still": "/screening/q02-chess/slams.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "YOUR MOVE",
+    "takes": 1,
+    "still": "/screening/q02-chess/drop.jpg"
+   },
+   {
+    "name": "slams2",
+    "kind": "slams",
+    "words": "HE IS NOT A PAWN",
+    "takes": 1,
+    "still": "/screening/q02-chess/slams2.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "ENDGAME",
+    "takes": 1,
+    "still": "/screening/q02-chess/title.jpg"
+   }
+  ],
+  "video": "/screening/q02-chess/film.mp4",
+  "poster": "/screening/q02-chess/poster.jpg"
+ },
+ {
+  "id": "g04-cleanup",
+  "title": "VOLUNTEER CLEAN‑UP",
+  "prompt": "Volunteer beach clean-up in Barcelona, Sunday 8am at Barceloneta: bring gloves, we bring coffee.",
+  "tier": "free",
+  "duration": 10,
+  "accent": "#FFC107",
+  "ground": "#0B0B0C",
+  "seconds": 118,
+  "usd": 0,
+  "requests": null,
+  "tokens": 26624,
+  "models": {
+   "director": "openai/gpt-oss-120b",
+   "builder": "nvidia/nemotron-3.5-super-vl:free",
+   "critic": "gemini-3.5-flash"
+  },
+  "score": 7,
+  "summary": "I reviewed the contact sheet for the Barceloneta volunteer clean-up trailer. The typography is bold, high-contrast, and easily readable at phone scale, though the film consists entirely of type cards.",
+  "notes": [
+   {
+    "text": "'BRING GLOVES' matches the brief's call to action more directly than 'YOUR HANDS'.",
+    "status": "kept after the second look"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "statement",
+    "words": "BRING GLOVES WE BRING COFFEE",
+    "takes": 2,
+    "still": "/screening/g04-cleanup/hook.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "SUNDAY 8AM",
+    "takes": 1,
+    "still": "/screening/g04-cleanup/slams.jpg"
+   },
+   {
+    "name": "hud",
+    "kind": "hand-written",
+    "words": "BARCELONETA",
+    "takes": 2,
+    "still": "/screening/g04-cleanup/hud.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "",
+    "takes": 1,
+    "still": "/screening/g04-cleanup/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "VOLUNTEER CLEAN‑UP",
+    "takes": 1,
+    "still": "/screening/g04-cleanup/title.jpg"
+   }
+  ],
+  "video": "/screening/g04-cleanup/film.mp4",
+  "poster": "/screening/g04-cleanup/poster.jpg"
+ },
+ {
+  "id": "p02-earbuds",
+  "title": "HALO",
+  "prompt": "Launch teaser for HALO, wireless earbuds that translate 40 languages in real time. Pre-order today, ships June 1.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#7FD8FF",
+  "ground": "#050B1A",
+  "seconds": 125,
+  "usd": 0.1085,
+  "requests": null,
+  "tokens": 25195,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 6.5,
+  "summary": "I saw a clean cold-blue sheet with a readable hook, a real earbud shape in the card, drop and title beats, and a hyperspace rush. The hook shows a debug caption (\"Words decoding, still unreadable\") in the top-left, the slams frame shows only \"EVERYONE.\" with \"HEAR\" missing, and the sub line is small at the bottom of the title.",
+  "notes": [
+   {
+    "text": "The hook has a tiny tracker label reading 'Words decoding, still unreadable'. That is the plan's note, not copy, and it sits at the frame edge. Remove it.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The hook is a vague jumble of '背景 ? ハロー ? HOLA', and the stray '?' marks read as noise. Open on a clear contradiction in the language gap. Keep it large with only a few scripts, so the thumb-stopper reads in one second.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The sheet shows only 'EVERYONE.' with 'HEAR' missing, so the peak line is half-read. Put it on one line so the full tagline holds at the settled frame.",
+    "status": "not applied: the new value is the one it already has"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "hud",
+    "words": "HELLO ? HOLA ? こんにちは",
+    "takes": 2,
+    "still": "/screening/p02-earbuds/hook.jpg"
+   },
+   {
+    "name": "card",
+    "kind": "hand-written",
+    "words": "40 LANGUAGES",
+    "takes": 2,
+    "still": "/screening/p02-earbuds/card.jpg"
+   },
+   {
+    "name": "rush",
+    "kind": "rush",
+    "words": "ZERO DELAY",
+    "takes": 1,
+    "still": "/screening/p02-earbuds/rush.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "SILENCE",
+    "takes": 1,
+    "still": "/screening/p02-earbuds/drop.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "HEAR EVERYONE.",
+    "takes": 1,
+    "still": "/screening/p02-earbuds/slams.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "HALO",
+    "takes": 1,
+    "still": "/screening/p02-earbuds/title.jpg"
+   }
+  ],
+  "video": "/screening/p02-earbuds/film.mp4",
+  "poster": "/screening/p02-earbuds/poster.jpg"
+ },
+ {
+  "id": "q05-arcade",
+  "title": "NEON RUNNER",
+  "prompt": "Reveal for NEON RUNNER, a retro arcade racer with synthwave soundtrack and 40 tracks. Out on Switch and PC, April 4.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#FF2BD6",
+  "ground": "#12052B",
+  "seconds": 143,
+  "usd": 0.1139,
+  "requests": null,
+  "tokens": 24829,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 7,
+  "summary": "I saw a clean, bold purple-and-magenta sheet. The hook asks a real question, the slams beat has a sun and a grid, the drop shows a car, and the title carries the date and platforms. The weak spots are the slams text crowding the sun and grid, the hook's low-contrast gray words on a dark field, and a title that is a little flat for the peak.",
+  "notes": [
+   {
+    "text": "The slams frame stacks four lines over the sun and grid. The top line touches the frame edge, and a tiny stray caption sits at the bottom. Cut it to three short lines and drop the filler caption so each slam has room.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The hook's first line is gray-on-purple and sits low in contrast, and it breaks mid-phrase. Regroup it so the question reads in three clean lines, and make the key word pop in magenta.",
+    "status": "rolled back after the second look"
+   },
+   {
+    "text": "The title is the release, but the magenta wordmark is darker than the white text elsewhere and fades into the purple. Add a light bloom behind it so it flares at the peak, and keep the date clear of the bottom edge.",
+    "status": "rolled back after the second look"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "statement",
+    "words": "REMEMBER WHEN SPEED HAD A SOUND?",
+    "takes": 3,
+    "still": "/screening/q05-arcade/hook.jpg"
+   },
+   {
+    "name": "statement2",
+    "kind": "statement",
+    "words": "ONE ROAD. ONE BEAT.",
+    "takes": 1,
+    "still": "/screening/q05-arcade/statement2.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "hand-written",
+    "words": "40 TRACKS SYNTHWAVE NO BRAKES",
+    "takes": 3,
+    "still": "/screening/q05-arcade/slams.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "READY?",
+    "takes": 1,
+    "still": "/screening/q05-arcade/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "NEON RUNNER",
+    "takes": 3,
+    "still": "/screening/q05-arcade/title.jpg"
+   }
+  ],
+  "video": "/screening/q05-arcade/film.mp4",
+  "poster": "/screening/q05-arcade/poster.jpg"
+ },
+ {
+  "id": "f10-album",
+  "title": "LOW TIDE",
+  "prompt": "Album teaser for LOW TIDE by the band Salt Lungs: ten songs written on a fishing boat. Out July 12.",
+  "tier": "free",
+  "duration": 15,
+  "accent": "#4CC9C0",
+  "ground": "#0B2A36",
+  "seconds": 532,
+  "usd": 0,
+  "requests": null,
+  "tokens": 44672,
+  "models": {
+   "director": "nvidia/nemotron-3.5-super-vl:free",
+   "builder": "nvidia/nemotron-3.5-super-vl:free",
+   "critic": "nvidia/nemotron-3.5-super-vl:free"
+  },
+  "score": 8,
+  "summary": "I saw a six-beat teaser sheet for Salt Lungs' LOW TIDE: TEN SONGS over black water, AT SEA on open swell, ONE BOAT on wet glass, TIDE as a light flash, an empty lantern-lit drop, and the title card with OUT JULY 12. The hook is bold and high-contrast, the muted read lands the band, album, and date, and the cold-steel system holds across every beat.",
+  "notes": [],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "statement",
+    "words": "TEN SONGS",
+    "takes": 1,
+    "still": "/screening/f10-album/hook.jpg"
+   },
+   {
+    "name": "world",
+    "kind": "hand-written",
+    "words": "AT SEA",
+    "takes": 2,
+    "still": "/screening/f10-album/world.jpg"
+   },
+   {
+    "name": "card",
+    "kind": "card",
+    "words": "ONE BOAT",
+    "takes": 1,
+    "still": "/screening/f10-album/card.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "SALT WIND WOOD TIDE",
+    "takes": 1,
+    "still": "/screening/f10-album/slams.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "",
+    "takes": 1,
+    "still": "/screening/f10-album/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "LOW TIDE",
+    "takes": 1,
+    "still": "/screening/f10-album/title.jpg"
+   }
+  ],
+  "video": "/screening/f10-album/film.mp4",
+  "poster": "/screening/f10-album/poster.jpg"
+ },
+ {
+  "id": "p05-summit",
+  "title": "SUMMIT",
+  "prompt": "Teaser for SUMMIT, a documentary about a 70-year-old woman climbing Everest. In cinemas March 20.",
+  "tier": "premium",
+  "duration": 15,
+  "accent": "#FF7A3D",
+  "ground": "#0E1A2B",
+  "seconds": 213,
+  "usd": 0.2147,
+  "requests": null,
+  "tokens": 42206,
+  "models": {
+   "director": "anthropic/claude-sonnet-5.5",
+   "builder": "anthropic/claude-sonnet-5.5",
+   "critic": "anthropic/claude-sonnet-5.5"
+  },
+  "score": 6.8,
+  "summary": "I saw a clean, readable five-beat sheet: a strong hook (\"SHE IS 70.\" in big white and orange serif), a slammed \"ONE\", a small \"8,849 M / DON'T LOOK DOWN\" card, a quiet \"BREATHE.\" with a mountain icon, and a \"SUMMIT\" title with the date. The hook is a real contradiction and the title lands clearly, but the middle is generic, the sheet shows only one word of the slams beat, and the same cartoon mountain icon appears twice.",
+  "notes": [
+   {
+    "text": "The 8,849 M beat is a small, thin text card on an empty dark field. It has no focal weight and reads as empty on a phone. Send it to a bigger recipe (rush) so the number lands large over the tunnel.",
+    "status": "kept after the second look"
+   },
+   {
+    "text": "The slams beat is the same word, ONE, repeated, and the frame shows no progress. Make the words build toward the climb so the beat says something new, and drop the repeat.",
+    "status": "rolled back after the second look"
+   },
+   {
+    "text": "The sub is small and sits near the bottom controls. Keep the date but make the call to action sharper, and say what the film is.",
+    "status": "kept after the second look"
+   }
+  ],
+  "beats": [
+   {
+    "name": "hook",
+    "kind": "statement",
+    "words": "SHE IS 70.",
+    "takes": 1,
+    "still": "/screening/p05-summit/hook.jpg"
+   },
+   {
+    "name": "slams",
+    "kind": "slams",
+    "words": "ONE STEP ONE BREATH ONE",
+    "takes": 3,
+    "still": "/screening/p05-summit/slams.jpg"
+   },
+   {
+    "name": "hud",
+    "kind": "rush",
+    "words": "8,849 M DON'T LOOK DOWN",
+    "takes": 4,
+    "still": "/screening/p05-summit/hud.jpg"
+   },
+   {
+    "name": "drop",
+    "kind": "drop",
+    "words": "BREATHE.",
+    "takes": 1,
+    "still": "/screening/p05-summit/drop.jpg"
+   },
+   {
+    "name": "title",
+    "kind": "title",
+    "words": "SUMMIT",
+    "takes": 2,
+    "still": "/screening/p05-summit/title.jpg"
+   }
+  ],
+  "video": "/screening/p05-summit/film.mp4",
+  "poster": "/screening/p05-summit/poster.jpg"
+ }
+]
