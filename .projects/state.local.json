@@ -1,0 +1,173 @@
+{
+  "version": 4,
+  "project": {
+    "catalog": "prod",
+    "initializedAt": "2026-10-17T19:42:40.660Z",
+    "merchantDisplayName": null,
+    "merchantId": "acct_1UQ58GQFUY0VLeRf",
+    "projectId": "project_61Vb1SRjLdVsf9ZIe16VZT5c8cGRgogNuIHJgdXSa8x6",
+    "projectName": "cutroom"
+  },
+  "providers": {
+    "cloudinary": {
+      "accountRequestId": "facctrq_61Vb2at13bDROHRb216VZT5c8cGRgogNuIHJgdXSa72u",
+      "configuration": {},
+      "linkedAt": "2026-10-17T20:55:32.705Z",
+      "providerId": "prvdr_61VSFOA6422ML3Mmh5WDg",
+      "providerName": "Cloudinary",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T20:55:32.705Z",
+      "status": "complete",
+      "providerAccount": {
+        "id": "9fed688b-fe46-43c0-b1c4-51d5ff8b14dd",
+        "display_name": "yjffe7rm",
+        "link_action": "created"
+      }
+    },
+    "createos": {
+      "accountRequestId": "fprvcnn_61VaGKA1yjB9X4TR016VZT5c8cGRgogNuIHJgdXSa4NU",
+      "configuration": {},
+      "linkedAt": "2026-10-15T17:22:58.217Z",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-15T17:22:58.217Z",
+      "status": "complete"
+    },
+    "openrouter": {
+      "accountRequestId": "fprvcnn_61VaGKzVpZDtQg2wE16VZT5c8cGRgogNuIHJgdXSaDnc",
+      "configuration": {},
+      "linkedAt": "2026-10-15T17:23:49.335Z",
+      "providerId": "prvdr_61URImmFACEuDHEx651IO",
+      "providerName": "OpenRouter",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-15T17:23:49.335Z",
+      "status": "complete"
+    },
+    "upstash": {
+      "accountRequestId": "facctrq_61Vb1jOevBb0ERtml16VZT5c8cGRgogNuIHJgdXSa5my",
+      "configuration": {},
+      "linkedAt": "2026-10-17T20:00:17.172Z",
+      "providerId": "prvdr_61UVa3kQyvSOEnWgd5Naa",
+      "providerName": "Upstash",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T20:00:17.172Z",
+      "status": "complete"
+    },
+    "vercel": {
+      "accountRequestId": "facctrq_61Vb1UW0Q9Twom6fS16VZT5c8cGRgogNuIHJgdXSaBIG",
+      "configuration": {},
+      "linkedAt": "2026-10-17T19:44:52.444Z",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T19:44:52.444Z",
+      "status": "complete"
+    }
+  },
+  "resources": {
+    "cloudinary-media": {
+      "configuration": {},
+      "createdAt": "2026-10-17T20:55:41.344Z",
+      "lastRevealedAt": "2026-10-17T20:55:41.849Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "cloudinary-media",
+      "providerId": "prvdr_61VSFOA6422ML3Mmh5WDg",
+      "providerName": "Cloudinary",
+      "resourceId": "fres_61Vb2b5arUz5Roog116VZT5c8cGRgogNuIHJgdXSaGES",
+      "serviceId": "media"
+    },
+    "cloudinary-plan": {
+      "configuration": {},
+      "createdAt": "2026-10-17T20:55:34.649Z",
+      "lastRevealedAt": "2026-10-17T20:55:35.123Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "cloudinary-plan",
+      "providerId": "prvdr_61VSFOA6422ML3Mmh5WDg",
+      "providerName": "Cloudinary",
+      "resourceId": "fres_61Vb2az7NULXQLOyK16VZT5c8cGRgogNuIHJgdXSa22y",
+      "serviceId": "free"
+    },
+    "createos-plan": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:44:12.806Z",
+      "lastRevealedAt": "2026-10-17T19:44:13.223Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "createos-plan",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "resourceId": "fres_61Vb1Tv0G3HK5kg3y16VZT5c8cGRgogNuIHJgdXSaIM4",
+      "serviceId": "free"
+    },
+    "createos-project": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:44:17.021Z",
+      "lastRevealedAt": "2026-10-17T19:44:17.453Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "createos-project",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "resourceId": "fres_61Vb1Tz6VN4o5qRll16VZT5c8cGRgogNuIHJgdXSaLJ2",
+      "serviceId": "project"
+    },
+    "openrouter-api": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:44:22.169Z",
+      "lastRevealedAt": "2026-10-17T19:44:22.628Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "openrouter-api",
+      "providerId": "prvdr_61URImmFACEuDHEx651IO",
+      "providerName": "OpenRouter",
+      "resourceId": "fres_61Vb1U4XDi30viSv316VZT5c8cGRgogNuIHJgdXSaB3o",
+      "serviceId": "api"
+    },
+    "upstash-redis": {
+      "configuration": {
+        "name": "cutroom",
+        "price": "free",
+        "region": "us-east-1",
+        "eviction": "on"
+      },
+      "createdAt": "2026-10-17T20:00:19.117Z",
+      "lastRevealedAt": "2026-10-17T20:00:19.582Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "upstash-redis",
+      "providerId": "prvdr_61UVa3kQyvSOEnWgd5Naa",
+      "providerName": "Upstash",
+      "resourceId": "fres_61Vb1jUvezWMp9CMJ16VZT5c8cGRgogNuIHJgdXSa89Y",
+      "serviceId": "redis"
+    },
+    "vercel-plan": {
+      "configuration": {},
+      "createdAt": "2026-10-17T19:44:53.730Z",
+      "lastRevealedAt": "2026-10-17T19:44:54.206Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "vercel-plan",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "resourceId": "fres_61Vb1Uattam3aWbIm16VZT5c8cGRgogNuIHJgdXSa1bU",
+      "serviceId": "hobby"
+    },
+    "vercel-project": {
+      "configuration": {
+        "name": "cutroom"
+      },
+      "createdAt": "2026-10-17T19:44:57.911Z",
+      "lastRevealedAt": "2026-10-17T19:44:58.364Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "vercel-project",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "resourceId": "fres_61Vb1UePmQ5HWBivv16VZT5c8cGRgogNuIHJgdXSaGpc",
+      "serviceId": "project"
+    }
+  }
+}
